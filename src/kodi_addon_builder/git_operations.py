@@ -37,7 +37,10 @@ def run_pre_commit_hooks(repo: Repo) -> None:
         if config_exists:
             click.echo("Running pre-commit hooks...")
             result = subprocess.run(
-                ["pre-commit", "run", "--all-files"], cwd=repo.working_dir, capture_output=True, text=True
+                ["pre-commit", "run", "--all-files"],
+                cwd=repo.working_dir,
+                capture_output=True,
+                text=True,
             )
             if result.returncode != 0:
                 raise ValueError(f"Pre-commit hooks failed:\n{result.stdout}\n{result.stderr}")

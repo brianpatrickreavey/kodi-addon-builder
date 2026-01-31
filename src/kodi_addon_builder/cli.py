@@ -142,7 +142,9 @@ def bump(bump_type, addon_path, news, non_interactive, dry_run):
 @click.option("--allow-empty", is_flag=True, help="Allow empty commits")
 @click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
 @click.option(
-    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+    "--repo-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the git repository",
 )
 def commit(message, files, allow_empty, no_pre_commit, repo_path):
     """Stage and commit changes with a custom message."""
@@ -178,7 +180,9 @@ def commit(message, files, allow_empty, no_pre_commit, repo_path):
 @click.argument("tag_name")
 @click.option("--message", "-m", help="Tag message (creates annotated tag)")
 @click.option(
-    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+    "--repo-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the git repository",
 )
 def tag(tag_name, message, repo_path):
     """Create a git tag."""
@@ -201,7 +205,9 @@ def tag(tag_name, message, repo_path):
 @click.option("--tags", is_flag=True, help="Also push tags")
 @click.option("--remote", default="origin", help="Remote name (default: origin)")
 @click.option(
-    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+    "--repo-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the git repository",
 )
 def push(branch, tags, remote, repo_path):
     """Push commits and optionally tags to remote."""
@@ -238,7 +244,11 @@ def push(branch, tags, remote, repo_path):
     help="Output path for the zip file (default: auto-generated)",
 )
 @click.option("--commit", default="HEAD", help="Git commit/tag to archive (default: HEAD)")
-@click.option("--full-repo", is_flag=True, help="Archive the full repository instead of addon-only")
+@click.option(
+    "--full-repo",
+    is_flag=True,
+    help="Archive the full repository instead of addon-only",
+)
 @click.option("--exclude", multiple=True, help="Files/patterns to exclude from archive")
 @click.option(
     "--addon-path",
@@ -246,7 +256,9 @@ def push(branch, tags, remote, repo_path):
     help="Path to the addon directory containing addon.xml",
 )
 @click.option(
-    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+    "--repo-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the git repository",
 )
 def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
     """Create a zip archive of the addon using git archive."""
@@ -321,14 +333,25 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
 @click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
 @click.option(
-    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+    "--repo-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the git repository",
 )
 @click.option("--remote", default="origin", help="Remote name (default: origin)")
 @click.option("--branch", "-b", help="Branch to push (default: current branch)")
 @click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
 @click.option("--allow-empty-commit", is_flag=True, help="Allow empty commits")
 def release(
-    bump_type, addon_path, news, non_interactive, dry_run, repo_path, remote, branch, no_pre_commit, allow_empty_commit
+    bump_type,
+    addon_path,
+    news,
+    non_interactive,
+    dry_run,
+    repo_path,
+    remote,
+    branch,
+    no_pre_commit,
+    allow_empty_commit,
 ):
     """Bump version, commit, tag, and push in one command."""
     # Find addon.xml

@@ -6,7 +6,12 @@ from pathlib import Path  # noqa: F401
 import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
-from kodi_addon_builder.cli import bump, find_addon_xml, validate_addon_xml, bump_version
+from kodi_addon_builder.cli import (
+    bump,
+    find_addon_xml,
+    validate_addon_xml,
+    bump_version,
+)
 
 
 class TestFindAddonXml:

@@ -22,7 +22,13 @@ class TestCommitCommand:
     @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
     @patch("kodi_addon_builder.cli.stage_changes")
     @patch("kodi_addon_builder.cli.commit_changes")
-    def test_commit_success(self, mock_commit_changes, mock_stage_changes, mock_run_pre_commit, mock_get_repo):
+    def test_commit_success(
+        self,
+        mock_commit_changes,
+        mock_stage_changes,
+        mock_run_pre_commit,
+        mock_get_repo,
+    ):
         """Test successful commit."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
@@ -52,14 +58,28 @@ class TestCommitCommand:
     @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
     @patch("kodi_addon_builder.cli.stage_changes")
     @patch("kodi_addon_builder.cli.commit_changes")
-    def test_commit_with_files(self, mock_commit_changes, mock_stage_changes, mock_run_pre_commit, mock_get_repo):
+    def test_commit_with_files(
+        self,
+        mock_commit_changes,
+        mock_stage_changes,
+        mock_run_pre_commit,
+        mock_get_repo,
+    ):
         """Test commit with specific files."""
         mock_repo = MagicMock()
         mock_get_repo.return_value = mock_repo
         mock_commit_changes.return_value = "abc123"
 
         result = self.runner.invoke(
-            commit, ["--message", "Test commit", "--files", "file1.txt", "--files", "file2.txt"]
+            commit,
+            [
+                "--message",
+                "Test commit",
+                "--files",
+                "file1.txt",
+                "--files",
+                "file2.txt",
+            ],
         )
         assert result.exit_code == 0
         mock_stage_changes.assert_called_once_with(mock_repo, ["file1.txt", "file2.txt"])
@@ -68,7 +88,13 @@ class TestCommitCommand:
     @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
     @patch("kodi_addon_builder.cli.stage_changes")
     @patch("kodi_addon_builder.cli.commit_changes")
-    def test_commit_allow_empty(self, mock_commit_changes, mock_stage_changes, mock_run_pre_commit, mock_get_repo):
+    def test_commit_allow_empty(
+        self,
+        mock_commit_changes,
+        mock_stage_changes,
+        mock_run_pre_commit,
+        mock_get_repo,
+    ):
         """Test commit allowing empty commits."""
         mock_repo = MagicMock()
         mock_get_repo.return_value = mock_repo
@@ -119,7 +145,13 @@ class TestCommitCommand:
     @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
     @patch("kodi_addon_builder.cli.stage_changes")
     @patch("kodi_addon_builder.cli.commit_changes")
-    def test_commit_commit_failure(self, mock_commit_changes, mock_stage_changes, mock_run_pre_commit, mock_get_repo):
+    def test_commit_commit_failure(
+        self,
+        mock_commit_changes,
+        mock_stage_changes,
+        mock_run_pre_commit,
+        mock_get_repo,
+    ):
         """Test commit with commit failure."""
         mock_repo = MagicMock()
         mock_get_repo.return_value = mock_repo
@@ -352,7 +384,12 @@ class TestZipCommand:
     @patch("kodi_addon_builder.cli.create_zip_archive")
     @patch("kodi_addon_builder.cli.get_addon_relative_path")
     def test_zip_addon_only_success(
-        self, mock_get_rel_path, mock_create_zip, mock_validate_xml, mock_find_xml, mock_get_repo
+        self,
+        mock_get_rel_path,
+        mock_create_zip,
+        mock_validate_xml,
+        mock_find_xml,
+        mock_get_repo,
     ):
         """Test successful zip creation for addon-only."""
         mock_repo = MagicMock()
@@ -365,7 +402,10 @@ class TestZipCommand:
         # Mock XML validation
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
         mock_get_rel_path.return_value = "plugin.video.test"
@@ -379,7 +419,11 @@ class TestZipCommand:
         assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
 
         mock_create_zip.assert_called_once_with(
-            mock_repo, Path("plugin.video.test-1.0.0.zip"), "HEAD", ["plugin.video.test"], None
+            mock_repo,
+            Path("plugin.video.test-1.0.0.zip"),
+            "HEAD",
+            ["plugin.video.test"],
+            None,
         )
 
     @patch("kodi_addon_builder.cli.get_repo")
@@ -397,7 +441,10 @@ class TestZipCommand:
 
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
         result = self.runner.invoke(zip_cmd, ["--full-repo"])
@@ -420,10 +467,16 @@ class TestZipCommand:
 
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
-        with patch("kodi_addon_builder.cli.get_addon_relative_path", return_value="plugin.video.test"):
+        with patch(
+            "kodi_addon_builder.cli.get_addon_relative_path",
+            return_value="plugin.video.test",
+        ):
             result = self.runner.invoke(zip_cmd, ["--output", "/custom/output.zip"])
             assert result.exit_code == 0
 
@@ -445,15 +498,25 @@ class TestZipCommand:
 
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
-        with patch("kodi_addon_builder.cli.get_addon_relative_path", return_value="plugin.video.test"):
+        with patch(
+            "kodi_addon_builder.cli.get_addon_relative_path",
+            return_value="plugin.video.test",
+        ):
             result = self.runner.invoke(zip_cmd, ["--commit", "v1.0.0"])
             assert result.exit_code == 0
 
         mock_create_zip.assert_called_once_with(
-            mock_repo, Path("plugin.video.test-1.0.0.zip"), "v1.0.0", ["plugin.video.test"], None
+            mock_repo,
+            Path("plugin.video.test-1.0.0.zip"),
+            "v1.0.0",
+            ["plugin.video.test"],
+            None,
         )
 
     @patch("kodi_addon_builder.cli.get_repo")
@@ -470,15 +533,25 @@ class TestZipCommand:
 
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
-        with patch("kodi_addon_builder.cli.get_addon_relative_path", return_value="plugin.video.test"):
+        with patch(
+            "kodi_addon_builder.cli.get_addon_relative_path",
+            return_value="plugin.video.test",
+        ):
             result = self.runner.invoke(zip_cmd, ["--exclude", "*.tmp", "--exclude", "build/"])
             assert result.exit_code == 0
 
         mock_create_zip.assert_called_once_with(
-            mock_repo, Path("plugin.video.test-1.0.0.zip"), "HEAD", ["plugin.video.test"], ["*.tmp", "build/"]
+            mock_repo,
+            Path("plugin.video.test-1.0.0.zip"),
+            "HEAD",
+            ["plugin.video.test"],
+            ["*.tmp", "build/"],
         )
 
     @patch("kodi_addon_builder.cli.get_repo")
@@ -553,12 +626,18 @@ class TestZipCommand:
 
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
         mock_create_zip.side_effect = ValueError("Archive creation failed")
 
-        with patch("kodi_addon_builder.cli.get_addon_relative_path", return_value="plugin.video.test"):
+        with patch(
+            "kodi_addon_builder.cli.get_addon_relative_path",
+            return_value="plugin.video.test",
+        ):
             result = self.runner.invoke(zip_cmd, [])
             assert result.exit_code == 1
             assert "Archive creation failed" in result.output
@@ -569,7 +648,12 @@ class TestZipCommand:
     @patch("kodi_addon_builder.cli.create_zip_archive")
     @patch("kodi_addon_builder.cli.get_addon_relative_path")
     def test_zip_with_addon_path(
-        self, mock_get_rel_path, mock_create_zip, mock_validate_xml, mock_find_xml, mock_get_repo
+        self,
+        mock_get_rel_path,
+        mock_create_zip,
+        mock_validate_xml,
+        mock_find_xml,
+        mock_get_repo,
     ):
         """Test zip with custom addon path."""
         mock_repo = MagicMock()
@@ -597,7 +681,12 @@ class TestZipCommand:
     @patch("kodi_addon_builder.cli.create_zip_archive")
     @patch("kodi_addon_builder.cli.get_addon_relative_path")
     def test_zip_with_repo_path(
-        self, mock_get_rel_path, mock_create_zip, mock_validate_xml, mock_find_xml, mock_get_repo
+        self,
+        mock_get_rel_path,
+        mock_create_zip,
+        mock_validate_xml,
+        mock_find_xml,
+        mock_get_repo,
     ):
         """Test zip with custom repo path."""
         mock_repo = MagicMock()
@@ -609,7 +698,10 @@ class TestZipCommand:
 
         mock_tree = MagicMock()
         mock_root = MagicMock()
-        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_root.get.side_effect = lambda key: {
+            "id": "plugin.video.test",
+            "version": "1.0.0",
+        }.get(key)
         mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
 
         import tempfile
@@ -1061,7 +1153,12 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.find_addon_xml")
     @patch("kodi_addon_builder.cli.bump_version")
     def test_release_pre_commit_error(
-        self, mock_bump_version, mock_find_xml, mock_validate_xml, mock_get_repo, mock_run_pre_commit
+        self,
+        mock_bump_version,
+        mock_find_xml,
+        mock_validate_xml,
+        mock_get_repo,
+        mock_run_pre_commit,
     ):
         """Test release with pre-commit hooks error."""
         mock_validate_xml.return_value = (MagicMock(), MagicMock(), "1.0.0")

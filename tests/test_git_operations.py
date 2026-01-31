@@ -105,7 +105,12 @@ class TestRunPreCommitHooks:
 
             expected_calls = [
                 call(["pre-commit", "--version"], capture_output=True, check=True),
-                call(["pre-commit", "run", "--all-files"], cwd="/fake/repo", capture_output=True, text=True),
+                call(
+                    ["pre-commit", "run", "--all-files"],
+                    cwd="/fake/repo",
+                    capture_output=True,
+                    text=True,
+                ),
             ]
             mock_run.assert_has_calls(expected_calls)
             mock_click.echo.assert_called_once_with("Running pre-commit hooks...")
@@ -326,7 +331,13 @@ class TestCreateZipArchive:
 
         create_zip_archive(mock_repo, output_path)
 
-        expected_cmd = ["git", "archive", "--format=zip", "--output=/output/test.zip", "HEAD"]
+        expected_cmd = [
+            "git",
+            "archive",
+            "--format=zip",
+            "--output=/output/test.zip",
+            "HEAD",
+        ]
         mock_run.assert_called_once_with(expected_cmd, cwd="/fake/repo", capture_output=True, text=True, check=True)
 
     @patch("kodi_addon_builder.git_operations.subprocess.run")
@@ -366,7 +377,13 @@ class TestCreateZipArchive:
 
         create_zip_archive(mock_repo, output_path, commit="v1.0.0")
 
-        expected_cmd = ["git", "archive", "--format=zip", "--output=/output/test.zip", "v1.0.0"]
+        expected_cmd = [
+            "git",
+            "archive",
+            "--format=zip",
+            "--output=/output/test.zip",
+            "v1.0.0",
+        ]
         mock_run.assert_called_once_with(expected_cmd, cwd="/fake/repo", capture_output=True, text=True, check=True)
 
     @patch("kodi_addon_builder.git_operations.subprocess.run")
