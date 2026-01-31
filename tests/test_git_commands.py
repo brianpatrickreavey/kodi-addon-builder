@@ -7,8 +7,9 @@ from unittest.mock import patch, MagicMock
 import git
 import tempfile
 import zipfile
+import xml.etree.ElementTree as ET
 
-from kodi_addon_builder.cli import commit, tag, push, zip_cmd
+from kodi_addon_builder.cli import commit, tag, push, zip_cmd, release
 
 
 class TestCommitCommand:
@@ -737,5 +738,367 @@ class TestZipCommandIntegration:
                     # Should not contain .git directory
                     assert not any(f.startswith('.git') for f in files)
                     
+            finally:
+                os.chdir(old_cwd)
+
+
+class TestReleaseCommand:
+    """Test the release CLI command."""
+
+    def setup_method(self):
+        """Set up test runner."""
+        self.runner = CliRunner()
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    @patch('kodi_addon_builder.cli.run_pre_commit_hooks')
+    @patch('kodi_addon_builder.cli.stage_changes')
+    @patch('kodi_addon_builder.cli.commit_changes')
+    @patch('kodi_addon_builder.cli.create_tag')
+    @patch('kodi_addon_builder.cli.push_commits')
+    @patch('kodi_addon_builder.cli.push_tags')
+    @patch('kodi_addon_builder.cli.get_current_branch')
+    def test_release_success(self, mock_get_branch, mock_push_tags, mock_push_commits,
+                            mock_create_tag, mock_commit_changes, mock_stage_changes,
+                            mock_run_pre_commit, mock_bump_version, mock_validate_xml,
+                            mock_find_xml, mock_get_repo):
+        """Test successful release."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/fake/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        # Mock XML validation and parsing
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_bump_version.return_value = "1.1.0"
+        mock_commit_changes.return_value = "abc123"
+        mock_get_branch.return_value = "main"
+
+        result = self.runner.invoke(release, ['patch', '--non-interactive'])
+        assert result.exit_code == 0
+        assert "Found addon.xml at: /fake/repo/plugin.video.test/addon.xml" in result.output
+        assert "Current version: 1.0.0" in result.output
+        assert "New version: 1.1.0" in result.output
+        assert "Updated addon.xml with version 1.1.0" in result.output
+        assert "Committed changes: abc123" in result.output
+        assert "Created tag: v1.1.0" in result.output
+        assert "Pushed branch: main" in result.output
+        assert "Pushed tags" in result.output
+        assert "Successfully released version 1.1.0" in result.output
+
+        # Verify calls
+        mock_get_repo.assert_called_once()
+        mock_find_xml.assert_called_once()
+        mock_validate_xml.assert_called_once_with(addon_xml_path)
+        mock_bump_version.assert_called_once_with("1.0.0", "patch")
+        mock_tree.write.assert_called_once()
+        mock_run_pre_commit.assert_called_once_with(mock_repo)
+        mock_stage_changes.assert_called_once_with(mock_repo, ["plugin.video.test/addon.xml"])
+        mock_commit_changes.assert_called_once_with(mock_repo, "Bump version to 1.1.0", False)
+        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", "Release version 1.1.0")
+        mock_push_commits.assert_called_once_with(mock_repo, "origin", None)
+        mock_push_tags.assert_called_once_with(mock_repo, "origin")
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    def test_release_dry_run(self, mock_bump_version, mock_validate_xml,
+                            mock_find_xml, mock_get_repo):
+        """Test release with dry run."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/fake/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.return_value = "1.0.0"
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_bump_version.return_value = "1.1.0"
+
+        result = self.runner.invoke(release, ['patch', '--dry-run', '--non-interactive'])
+        assert result.exit_code == 0
+        assert "Dry run: No changes made" in result.output
+        assert "Would bump version to 1.1.0" in result.output
+        assert "Would commit with message: 'Bump version to 1.1.0'" in result.output
+        assert "Would create tag: v1.1.0" in result.output
+        assert "Would push branch and tags to origin" in result.output
+
+        # Verify no actual changes
+        mock_tree.write.assert_not_called()
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    @patch('kodi_addon_builder.cli.run_pre_commit_hooks')
+    @patch('kodi_addon_builder.cli.stage_changes')
+    @patch('kodi_addon_builder.cli.commit_changes')
+    @patch('kodi_addon_builder.cli.create_tag')
+    @patch('kodi_addon_builder.cli.push_commits')
+    @patch('kodi_addon_builder.cli.push_tags')
+    @patch('kodi_addon_builder.cli.get_current_branch')
+    def test_release_with_news(self, mock_get_branch, mock_push_tags, mock_push_commits,
+                              mock_create_tag, mock_commit_changes, mock_stage_changes,
+                              mock_run_pre_commit, mock_bump_version, mock_validate_xml,
+                              mock_find_xml, mock_get_repo):
+        """Test release with news/changelog."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/fake/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.return_value = "1.0.0"
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_bump_version.return_value = "1.1.0"
+        mock_commit_changes.return_value = "abc123"
+        mock_get_branch.return_value = "main"
+
+        result = self.runner.invoke(release, ['patch', '--news', 'Fixed a bug', '--non-interactive'])
+        assert result.exit_code == 0
+        assert "News: Fixed a bug" in result.output
+
+        # Verify commit message includes news
+        expected_commit_msg = "Bump version to 1.1.0\n\nFixed a bug"
+        mock_commit_changes.assert_called_once_with(mock_repo, expected_commit_msg, False)
+
+        # Verify tag message includes news
+        expected_tag_msg = "Release version 1.1.0\n\nFixed a bug"
+        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", expected_tag_msg)
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    @patch('kodi_addon_builder.cli.run_pre_commit_hooks')
+    @patch('kodi_addon_builder.cli.stage_changes')
+    @patch('kodi_addon_builder.cli.commit_changes')
+    @patch('kodi_addon_builder.cli.create_tag')
+    @patch('kodi_addon_builder.cli.push_commits')
+    @patch('kodi_addon_builder.cli.push_tags')
+    @patch('kodi_addon_builder.cli.get_current_branch')
+    def test_release_custom_options(self, mock_get_branch, mock_push_tags, mock_push_commits,
+                                   mock_create_tag, mock_commit_changes, mock_stage_changes,
+                                   mock_run_pre_commit, mock_bump_version, mock_validate_xml,
+                                   mock_find_xml, mock_get_repo):
+        """Test release with custom remote, branch, and options."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/fake/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.return_value = "1.0.0"
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_bump_version.return_value = "1.1.0"
+        mock_commit_changes.return_value = "abc123"
+        mock_get_branch.return_value = "develop"
+
+        result = self.runner.invoke(release, ['patch', '--remote', 'upstream', '--branch', 'develop', '--no-pre-commit', '--allow-empty-commit', '--non-interactive'])
+        assert result.exit_code == 0
+
+        # Verify custom options
+        mock_run_pre_commit.assert_not_called()
+        mock_commit_changes.assert_called_once_with(mock_repo, "Bump version to 1.1.0", True)
+        mock_push_commits.assert_called_once_with(mock_repo, "upstream", "develop")
+        mock_push_tags.assert_called_once_with(mock_repo, "upstream")
+
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    def test_release_no_addon_xml(self, mock_find_xml):
+        """Test release with no addon.xml found."""
+        mock_find_xml.return_value = None
+
+        result = self.runner.invoke(release, ['patch'])
+        assert result.exit_code == 1
+        assert "Could not find addon.xml" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    def test_release_invalid_addon_xml(self, mock_validate_xml, mock_find_xml, mock_get_repo):
+        """Test release with invalid addon.xml."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_validate_xml.side_effect = ValueError("Invalid XML")
+
+        result = self.runner.invoke(release, ['patch'])
+        assert result.exit_code == 1
+        assert "Invalid addon.xml: Invalid XML" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    def test_release_invalid_bump_type(self, mock_bump_version, mock_validate_xml,
+                                      mock_find_xml, mock_get_repo):
+        """Test release with invalid bump type."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.return_value = "1.0.0"
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_bump_version.side_effect = ValueError("Invalid bump type")
+
+        result = self.runner.invoke(release, ['invalid'])
+        assert result.exit_code == 2
+        assert "Invalid value for" in result.output and "'invalid' is not one of" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    def test_release_addon_xml_not_found(self, mock_get_repo, tmp_path):
+        """Test release with addon.xml not found at specified path."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        # Create a temp directory (exists, so Click passes), but no addon.xml
+        fake_dir = tmp_path / "fake_addon"
+        fake_dir.mkdir()
+
+        result = self.runner.invoke(release, ['major', '--addon-path', str(fake_dir)])
+        assert result.exit_code == 1
+        assert f"addon.xml not found at {fake_dir}/addon.xml" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    def test_release_repo_error(self, mock_bump_version, mock_find_xml, mock_validate_xml, mock_get_repo):
+        """Test release with repository error."""
+        mock_validate_xml.return_value = (MagicMock(), MagicMock(), '1.0.0')
+        mock_find_xml.return_value = Path('/fake/addon.xml')
+        mock_bump_version.return_value = '1.1.0'
+        mock_get_repo.side_effect = ValueError("No git repository found")
+
+        result = self.runner.invoke(release, ['major', '--non-interactive'])
+        assert result.exit_code == 1
+        assert "No git repository found" in result.output
+
+    @patch('kodi_addon_builder.cli.run_pre_commit_hooks')
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.bump_version')
+    def test_release_pre_commit_error(self, mock_bump_version, mock_find_xml, mock_validate_xml, mock_get_repo, mock_run_pre_commit):
+        """Test release with pre-commit hooks error."""
+        mock_validate_xml.return_value = (MagicMock(), MagicMock(), '1.0.0')
+        mock_find_xml.return_value = Path('/fake/addon.xml')
+        mock_bump_version.return_value = '1.1.0'
+        mock_repo = MagicMock()
+        mock_repo.working_dir = '/fake/repo'
+        mock_get_repo.return_value = mock_repo
+        mock_run_pre_commit.side_effect = ValueError("Pre-commit hooks failed")
+
+        result = self.runner.invoke(release, ['major', '--non-interactive'])
+        assert result.exit_code == 1
+        assert "Pre-commit hooks failed" in result.output
+
+
+class TestReleaseCommandIntegration:
+    """Integration tests for the release CLI command."""
+
+    def setup_method(self):
+        """Set up test runner."""
+        self.runner = CliRunner()
+
+    def test_release_integration(self, tmp_path, sample_addon_xml_content):
+        """Integration test: create git repo with addon, run full release."""
+        # Create a temporary git repository
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+        
+        # Create a bare remote repo
+        remote_dir = tmp_path / "remote_repo"
+        remote_dir.mkdir()
+        remote_repo = git.Repo.init(remote_dir, bare=True)
+        
+        # Initialize git repo
+        repo = git.Repo.init(repo_dir)
+        
+        # Configure git user
+        repo.config_writer().set_value("user", "name", "Test User").release()
+        repo.config_writer().set_value("user", "email", "test@example.com").release()
+        
+        # Add remote
+        repo.create_remote('origin', str(remote_dir))
+        
+        # Create addon structure
+        addon_dir = repo_dir / "plugin.video.test"
+        addon_dir.mkdir()
+        
+        # Create addon.xml
+        addon_xml = addon_dir / "addon.xml"
+        addon_xml.write_text(sample_addon_xml_content)
+        
+        # Add and commit initial files
+        repo.index.add("*")
+        repo.index.commit("Initial commit")
+        
+        # Push initial commit
+        repo.git.push('origin', 'master')
+        
+        # Test release command
+        with self.runner.isolated_filesystem():
+            import os
+            old_cwd = os.getcwd()
+            os.chdir(str(repo_dir))
+            
+            try:
+                # Run release in dry-run mode first
+                result = self.runner.invoke(release, ['patch', '--dry-run', '--non-interactive'])
+                assert result.exit_code == 0
+                assert "Dry run: No changes made" in result.output
+                assert "Would bump version to 1.0.1" in result.output
+                
+                # Verify no changes were made
+                tree = ET.parse(addon_xml)
+                root = tree.getroot()
+                assert root.get('version') == "1.0.0"
+                
+                # Now run actual release
+                result = self.runner.invoke(release, ['patch', '--news', 'Test release'])
+                assert result.exit_code == 0
+                assert "Current version: 1.0.0" in result.output
+                assert "New version: 1.0.1" in result.output
+                assert "Successfully released version 1.0.1" in result.output
+                
+                # Verify addon.xml was updated
+                tree = ET.parse(addon_xml)
+                root = tree.getroot()
+                assert root.get('version') == "1.0.1"
+                
+                # Verify git state
+                assert repo.head.commit.message == "Bump version to 1.0.1\n\nTest release"
+                assert "v1.0.1" in [tag.name for tag in repo.tags]
+                
             finally:
                 os.chdir(old_cwd)
