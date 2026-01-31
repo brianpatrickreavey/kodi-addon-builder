@@ -1,7 +1,7 @@
 # Kodi Addon Builder
 
 [![CI](https://github.com/brianpatrickreavey/kodi-addon-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/brianpatrickreavey/kodi-addon-builder/actions/workflows/ci.yml)
-![Coverage](coverage-badge.svg)
+![Coverage](https://raw.githubusercontent.com/brianpatrickreavey/kodi-addon-builder/badges/coverage-badge.svg)
 [![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
