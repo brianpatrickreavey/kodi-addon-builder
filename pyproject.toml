@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kodi-addon-builder"
+version = "0.1.0"
+description = "A CLI tool to automate version bumping, committing, tagging, pushing, releasing, and local zip artifact generation for Kodi addons."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "click>=8.0.0",
+    "gitpython>=3.1.0",
+    "semver>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/kodi-addon-builder"
+Repository = "https://github.com/yourusername/kodi-addon-builder.git"
+Issues = "https://github.com/yourusername/kodi-addon-builder/issues"
+
+[project.scripts]
+kodi-addon-builder = "kodi_addon_builder.cli:main"
