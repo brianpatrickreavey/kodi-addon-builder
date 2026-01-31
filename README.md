@@ -39,39 +39,46 @@ pip install -e .
    cd /path/to/your/kodi/addon
    ```
 
-2. **Bump the version**:
+2. **Bump the version and commit**:
+   ```bash
+   kodi-addon-builder bump-commit minor --news "Added new feature X"
+   ```
+
+3. **Or bump separately**:
    ```bash
    kodi-addon-builder bump minor
    ```
 
-3. **Commit changes**:
+4. **Commit changes**:
    ```bash
    kodi-addon-builder commit "Bump version to 1.1.0"
    ```
 
-4. **Create a release** (bumps, commits, tags, pushes):
+5. **Create a release** (bumps, commits, tags, pushes):
    ```bash
    kodi-addon-builder release patch --news "Fixed bug X"
    ```
 
-5. **Build a zip**:
+6. **Build a zip**:
    ```bash
    kodi-addon-builder zip --output my-addon.zip
    ```
 
 ## Commands
 
-### `bump <bump_type> [options]`
+### `bump-commit <bump_type> [options]`
 
-Bump the version in `addon.xml`.
+Bump version, update changelog, and commit changes in one command.
 
 - `<bump_type>`: `major`, `minor`, `patch`
 - `--addon-path <path>`: Path to addon directory (auto-detected if not specified)
-- `--news <text>`: Changelog/news for the version
-- `--non-interactive`: Skip prompts
-- `--dry-run`: Show changes without applying
+- `--news <text>`: News/changelog entry for this version
+- `--file <file>`: File containing news/changelog
+- `--editor`: Open editor to input news
+- `--non-interactive`: Run in non-interactive mode
+- `--dry-run`: Show what would be done without making changes
 
-### `commit <message> [options]`
+### `bump <bump_type> [options]`
 
 Stage and commit changes.
 
@@ -159,7 +166,7 @@ A: Use `--exclude` for patterns, or `--full-repo` for the entire repository.
 A: The tool is Kodi-specific due to `addon.xml` parsing, but git operations are general.
 
 **Q: What if pre-commit hooks fail?**
-A: Fix the issues (e.g., run `black .` and `flake8 .`), then commit again.
+A: Fix the issues (e.g., run `make format` and `make lint`), then commit again.
 
 ## Troubleshooting
 
@@ -174,7 +181,7 @@ A: Fix the issues (e.g., run `black .` and `flake8 .`), then commit again.
 2. Set up pre-commit hooks: `pre-commit install`
 3. Create a feature branch.
 4. Add tests for new features.
-5. Run `make unittest-with-coverage` (or `python -m pytest --cov=src/kodi_addon_builder`).
+5. Run `make test` for testing with coverage, `make lint` for linting, `make format` for formatting.
 6. Submit a pull request.
 
 ## License

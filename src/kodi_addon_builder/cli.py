@@ -2,6 +2,7 @@
 """Kodi Addon Builder CLI tool."""
 
 import xml.etree.ElementTree as ET
+from datetime import date
 from pathlib import Path
 
 import click
@@ -134,6 +135,126 @@ def bump(bump_type, addon_path, news, non_interactive, dry_run):
     tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
 
     click.echo(f"Updated addon.xml with version {new_version}")
+
+
+def is_tree_clean(repo):
+    """Check if the git working tree is clean."""
+    return not repo.git.status(porcelain=True).strip()
+
+
+def update_changelog(changelog_path, version, news):
+    """Update CHANGELOG.md with new version entry."""
+    today = date.today().isoformat()
+    entry = f"## [{version}] - {today}\n- {news}\n\n"
+
+    if changelog_path.exists():
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    else:
+        content = "# Changelog\n\n"
+
+    with open(changelog_path, "w", encoding="utf-8") as f:
+        f.write(content + entry)
+
+
+@click.command()
+@click.argument("bump_type", type=click.Choice(["major", "minor", "patch"]))
+@click.option(
+    "--addon-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the addon directory containing addon.xml",
+)
+@click.option("--news", help="News/changelog entry for this version")
+@click.option(
+    "--file", "news_file", type=click.Path(exists=True, dir_okay=False), help="File containing news/changelog"
+)
+@click.option("--editor", is_flag=True, help="Open editor to input news")
+@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
+@click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
+def bump_commit(bump_type, addon_path, news, news_file, editor, non_interactive, dry_run):
+    """Bump version, update changelog, and commit changes."""
+    # Find addon.xml
+    if addon_path:
+        addon_dir = Path(addon_path)
+        addon_xml_path = addon_dir / "addon.xml"
+        if not addon_xml_path.exists():
+            raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
+    else:
+        addon_xml_path = find_addon_xml()
+        if not addon_xml_path:
+            raise click.ClickException("Could not find addon.xml in current directory or subdirectories")
+        addon_dir = addon_xml_path.parent
+
+    click.echo(f"Found addon.xml at: {addon_xml_path}")
+
+    # Get repo
+    try:
+        repo = get_repo(addon_dir)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    # Check tree clean
+    if not is_tree_clean(repo):
+        raise click.ClickException("Working tree is not clean. Please commit or stash changes first.")
+
+    # Validate and parse addon.xml
+    try:
+        tree, root, current_version = validate_addon_xml(addon_xml_path)
+    except ValueError as e:
+        raise click.ClickException(f"Invalid addon.xml: {e}")
+
+    click.echo(f"Current version: {current_version}")
+
+    # Bump version
+    try:
+        new_version = bump_version(current_version, bump_type)
+    except ValueError as e:
+        raise click.ClickException(f"Failed to bump version: {e}")
+
+    click.echo(f"New version: {new_version}")
+
+    # Get news
+    if news_file:
+        with open(news_file, "r", encoding="utf-8") as f:
+            news = f.read().strip()
+    elif editor:
+        news = click.edit("Enter news/changelog for this version")
+        if news:
+            news = news.strip()
+    elif news:
+        pass  # already provided
+    elif not non_interactive:
+        news = click.prompt("Enter news/changelog for this version")
+    else:
+        raise click.ClickException("News is required. Use --news, --file, or --editor, or run interactively.")
+
+    if not news:
+        raise click.ClickException("News cannot be empty.")
+
+    click.echo(f"News: {news}")
+
+    # Dry run
+    if dry_run:
+        click.echo("Dry run: No changes made")
+        return
+
+    # Update XML
+    root.set("version", new_version)
+    tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
+
+    # Update changelog
+    changelog_path = addon_dir / "CHANGELOG.md"
+    update_changelog(changelog_path, new_version, news)
+
+    click.echo(f"Updated addon.xml and CHANGELOG.md with version {new_version}")
+
+    # Stage and commit
+    try:
+        stage_changes(repo, None)  # stage all
+        commit_hash = commit_changes(repo, news, False)
+        click.echo(f"Committed changes: {commit_hash}")
+    except Exception as e:
+        raise click.ClickException(f"Failed to commit: {e}")
 
 
 @click.command()
@@ -471,6 +592,7 @@ def release(
 
 
 main.add_command(bump)
+main.add_command(bump_commit)
 main.add_command(commit)
 main.add_command(tag)
 main.add_command(push)

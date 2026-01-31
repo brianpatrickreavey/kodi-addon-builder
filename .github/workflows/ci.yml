@@ -65,6 +65,7 @@ jobs:
         git fetch origin
         git checkout -B badges origin/badges
         COVERAGE=$(python -c "import xml.etree.ElementTree as ET; print(int(float(ET.parse('coverage.xml').getroot().attrib['line-rate']) * 100))")
+        echo "Coverage: $COVERAGE%"
         anybadge --value=$COVERAGE --label=Coverage --file=coverage-badge.svg --color=green --overwrite
         git add coverage-badge.svg
         git commit -m "Update coverage badge" || echo 'No changes to commit'

@@ -1,6 +1,7 @@
 """Test configuration and fixtures for kodi-addon-builder."""
 
 import pytest
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
@@ -94,3 +95,11 @@ def temp_nested_addon_dir(tmp_path, sample_addon_xml_content):
     addon_xml = addon_dir / "addon.xml"
     addon_xml.write_text(sample_addon_xml_content)
     return root_dir
+
+
+@pytest.fixture
+def mock_repo():
+    """Mock git repository for testing."""
+    repo = MagicMock()
+    repo.git = MagicMock()
+    return repo

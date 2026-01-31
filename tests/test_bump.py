@@ -11,6 +11,9 @@ from kodi_addon_builder.cli import (
     find_addon_xml,
     validate_addon_xml,
     bump_version,
+    is_tree_clean,
+    update_changelog,
+    bump_commit,
 )
 
 
@@ -227,3 +230,83 @@ class TestBumpCommand:
         # Test the underlying function directly
         with pytest.raises(ValueError, match="Invalid bump type"):
             bump_version("1.0.0", "invalid")
+
+
+class TestIsTreeClean:
+    """Test is_tree_clean function."""
+
+    def test_tree_clean(self, mock_repo):
+        """Test when working tree is clean."""
+        mock_repo.git.status.return_value = ""
+        assert is_tree_clean(mock_repo) is True
+
+    def test_tree_dirty(self, mock_repo):
+        """Test when working tree is dirty."""
+        mock_repo.git.status.return_value = "M file.txt"
+        assert is_tree_clean(mock_repo) is False
+
+
+class TestUpdateChangelog:
+    """Test update_changelog function."""
+
+    def test_update_changelog_new_file(self, tmp_path):
+        """Test creating a new CHANGELOG.md."""
+        changelog_path = tmp_path / "CHANGELOG.md"
+        update_changelog(changelog_path, "1.1.0", "Added new feature")
+        content = changelog_path.read_text()
+        assert "# Changelog" in content
+        assert "## [1.1.0]" in content
+        assert "- Added new feature" in content
+
+    def test_update_changelog_existing_file(self, tmp_path):
+        """Test appending to existing CHANGELOG.md."""
+        changelog_path = tmp_path / "CHANGELOG.md"
+        changelog_path.write_text("# Changelog\n\n## [1.0.0] - 2023-01-01\n- Initial release\n\n")
+        update_changelog(changelog_path, "1.1.0", "Added new feature")
+        content = changelog_path.read_text()
+        assert "## [1.0.0]" in content
+        assert "## [1.1.0]" in content
+
+
+class TestBumpCommit:
+    """Test bump_commit command."""
+
+    def setup_method(self):
+        """Set up test runner."""
+        self.runner = CliRunner()
+
+    def test_bump_commit_success(self, temp_addon_dir, mock_repo):
+        """Test successful bump-commit."""
+        with patch("kodi_addon_builder.cli.get_repo", return_value=mock_repo), patch(
+            "kodi_addon_builder.cli.is_tree_clean", return_value=True
+        ), patch("kodi_addon_builder.cli.stage_changes"), patch(
+            "kodi_addon_builder.cli.commit_changes", return_value="abc123"
+        ):
+            result = self.runner.invoke(
+                bump_commit, ["minor", "--addon-path", str(temp_addon_dir), "--news", "Test news", "--non-interactive"]
+            )
+            assert result.exit_code == 0
+            assert "New version: 1.1.0" in result.output
+            assert "Committed changes: abc123" in result.output
+
+    def test_bump_commit_dirty_tree(self, temp_addon_dir, mock_repo):
+        """Test bump-commit with dirty working tree."""
+        with patch("kodi_addon_builder.cli.get_repo", return_value=mock_repo), patch(
+            "kodi_addon_builder.cli.is_tree_clean", return_value=False
+        ):
+            result = self.runner.invoke(
+                bump_commit, ["minor", "--addon-path", str(temp_addon_dir), "--news", "Test news", "--non-interactive"]
+            )
+            assert result.exit_code == 1
+            assert "Working tree is not clean" in result.output
+
+    def test_bump_commit_no_news(self, temp_addon_dir, mock_repo):
+        """Test bump-commit without news in non-interactive mode."""
+        with patch("kodi_addon_builder.cli.get_repo", return_value=mock_repo), patch(
+            "kodi_addon_builder.cli.is_tree_clean", return_value=True
+        ):
+            result = self.runner.invoke(
+                bump_commit, ["minor", "--addon-path", str(temp_addon_dir), "--non-interactive"]
+            )
+            assert result.exit_code == 1
+            assert "News is required" in result.output

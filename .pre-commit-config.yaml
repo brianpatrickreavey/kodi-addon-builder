@@ -11,6 +11,4 @@ repos:
     hooks:
       - id: flake8
         args: [--max-line-length=120, --extend-ignore=E203]
-
-# Note: Pyright is not included as it's slower and better for CI/manual checks.
-# Pytest is for CI/CD, not pre-commit.
+        language_version: python3
