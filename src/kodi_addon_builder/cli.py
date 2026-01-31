@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Kodi Addon Builder CLI tool."""
 
-import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -9,16 +8,23 @@ import click
 import semver
 
 from .git_operations import (
-    get_repo, run_pre_commit_hooks, stage_changes, commit_changes,
-    create_tag, push_commits, push_tags, get_current_branch, checkout_branch,
-    create_zip_archive, get_addon_relative_path
+    get_repo,
+    run_pre_commit_hooks,
+    stage_changes,
+    commit_changes,
+    create_tag,
+    push_commits,
+    push_tags,
+    get_current_branch,
+    create_zip_archive,
+    get_addon_relative_path,
 )
 
 
 @click.group()
 @click.version_option(version="0.1.0")
 def main():
-    """A CLI tool to automate version bumping, committing, tagging, pushing, releasing, and local zip artifact generation for Kodi addons."""
+    """CLI tool for Kodi addon version management and packaging."""
     pass  # pragma: no cover
 
 
@@ -29,7 +35,7 @@ def find_addon_xml(start_path=None):
     else:
         start_path = Path(start_path)
 
-    for path in start_path.rglob('addon.xml'):
+    for path in start_path.rglob("addon.xml"):
         return path
     return None
 
@@ -39,9 +45,9 @@ def validate_addon_xml(addon_path):
     try:
         tree = ET.parse(addon_path)
         root = tree.getroot()
-        if root.tag != 'addon':
+        if root.tag != "addon":
             raise ValueError("Root element is not 'addon'")
-        version = root.get('version')
+        version = root.get("version")
         if not version:
             raise ValueError("No version attribute found")
         # Validate version format
@@ -59,29 +65,32 @@ def validate_addon_xml(addon_path):
 def bump_version(current_version, bump_type):
     """Bump the version based on type."""
     version = semver.VersionInfo.parse(current_version)
-    if bump_type == 'major':
+    if bump_type == "major":
         return str(version.bump_major())
-    elif bump_type == 'minor':
+    elif bump_type == "minor":
         return str(version.bump_minor())
-    elif bump_type == 'patch':
+    elif bump_type == "patch":
         return str(version.bump_patch())
     else:
         raise ValueError(f"Invalid bump type: {bump_type}")  # pragma: no cover
 
 
 @click.command()
-@click.argument('bump_type', type=click.Choice(['major', 'minor', 'patch']))
-@click.option('--addon-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the addon directory containing addon.xml')
-@click.option('--news', help='News/changelog entry for this version')
-@click.option('--non-interactive', is_flag=True, help='Run in non-interactive mode')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
+@click.argument("bump_type", type=click.Choice(["major", "minor", "patch"]))
+@click.option(
+    "--addon-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the addon directory containing addon.xml",
+)
+@click.option("--news", help="News/changelog entry for this version")
+@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
+@click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
 def bump(bump_type, addon_path, news, non_interactive, dry_run):
     """Bump the version in addon.xml."""
     # Find addon.xml
     if addon_path:
         addon_dir = Path(addon_path)
-        addon_xml_path = addon_dir / 'addon.xml'
+        addon_xml_path = addon_dir / "addon.xml"
         if not addon_xml_path.exists():
             raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
     else:
@@ -121,19 +130,20 @@ def bump(bump_type, addon_path, news, non_interactive, dry_run):
         return
 
     # Update XML
-    root.set('version', new_version)
-    tree.write(addon_xml_path, encoding='UTF-8', xml_declaration=True)
+    root.set("version", new_version)
+    tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
 
     click.echo(f"Updated addon.xml with version {new_version}")
 
 
 @click.command()
-@click.option('--message', '-m', required=True, help='Commit message')
-@click.option('--files', multiple=True, help='Specific files to stage (default: all changes)')
-@click.option('--allow-empty', is_flag=True, help='Allow empty commits')
-@click.option('--no-pre-commit', is_flag=True, help='Skip pre-commit hook checks')
-@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the git repository')
+@click.option("--message", "-m", required=True, help="Commit message")
+@click.option("--files", multiple=True, help="Specific files to stage (default: all changes)")
+@click.option("--allow-empty", is_flag=True, help="Allow empty commits")
+@click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
+@click.option(
+    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+)
 def commit(message, files, allow_empty, no_pre_commit, repo_path):
     """Stage and commit changes with a custom message."""
     try:
@@ -165,10 +175,11 @@ def commit(message, files, allow_empty, no_pre_commit, repo_path):
 
 
 @click.command()
-@click.argument('tag_name')
-@click.option('--message', '-m', help='Tag message (creates annotated tag)')
-@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the git repository')
+@click.argument("tag_name")
+@click.option("--message", "-m", help="Tag message (creates annotated tag)")
+@click.option(
+    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+)
 def tag(tag_name, message, repo_path):
     """Create a git tag."""
     try:
@@ -186,11 +197,12 @@ def tag(tag_name, message, repo_path):
 
 
 @click.command()
-@click.option('--branch', '-b', help='Branch to push (default: current branch)')
-@click.option('--tags', is_flag=True, help='Also push tags')
-@click.option('--remote', default='origin', help='Remote name (default: origin)')
-@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the git repository')
+@click.option("--branch", "-b", help="Branch to push (default: current branch)")
+@click.option("--tags", is_flag=True, help="Also push tags")
+@click.option("--remote", default="origin", help="Remote name (default: origin)")
+@click.option(
+    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+)
 def push(branch, tags, remote, repo_path):
     """Push commits and optionally tags to remote."""
     try:
@@ -218,15 +230,24 @@ def push(branch, tags, remote, repo_path):
 
 
 @click.command()
-@click.option('--output', '-o', 'output_path', type=click.Path(dir_okay=False),
-              help='Output path for the zip file (default: auto-generated)')
-@click.option('--commit', default='HEAD', help='Git commit/tag to archive (default: HEAD)')
-@click.option('--full-repo', is_flag=True, help='Archive the full repository instead of addon-only')
-@click.option('--exclude', multiple=True, help='Files/patterns to exclude from archive')
-@click.option('--addon-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the addon directory containing addon.xml')
-@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the git repository')
+@click.option(
+    "--output",
+    "-o",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    help="Output path for the zip file (default: auto-generated)",
+)
+@click.option("--commit", default="HEAD", help="Git commit/tag to archive (default: HEAD)")
+@click.option("--full-repo", is_flag=True, help="Archive the full repository instead of addon-only")
+@click.option("--exclude", multiple=True, help="Files/patterns to exclude from archive")
+@click.option(
+    "--addon-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the addon directory containing addon.xml",
+)
+@click.option(
+    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+)
 def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
     """Create a zip archive of the addon using git archive."""
     # Get repo
@@ -240,7 +261,7 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
     # Find addon.xml
     if addon_path:
         addon_dir = Path(addon_path)
-        addon_xml_path = addon_dir / 'addon.xml'
+        addon_xml_path = addon_dir / "addon.xml"
         if not addon_xml_path.exists():
             raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
     else:
@@ -257,7 +278,7 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
     except ValueError as e:
         raise click.ClickException(f"Invalid addon.xml: {e}")
 
-    addon_id = root.get('id')
+    addon_id = root.get("id")
     if not addon_id:
         raise click.ClickException("addon.xml missing 'id' attribute")
 
@@ -290,24 +311,30 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
 
 
 @click.command()
-@click.argument('bump_type', type=click.Choice(['major', 'minor', 'patch']))
-@click.option('--addon-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the addon directory containing addon.xml')
-@click.option('--news', help='News/changelog entry for this version')
-@click.option('--non-interactive', is_flag=True, help='Run in non-interactive mode')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
-@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help='Path to the git repository')
-@click.option('--remote', default='origin', help='Remote name (default: origin)')
-@click.option('--branch', '-b', help='Branch to push (default: current branch)')
-@click.option('--no-pre-commit', is_flag=True, help='Skip pre-commit hook checks')
-@click.option('--allow-empty-commit', is_flag=True, help='Allow empty commits')
-def release(bump_type, addon_path, news, non_interactive, dry_run, repo_path, remote, branch, no_pre_commit, allow_empty_commit):
+@click.argument("bump_type", type=click.Choice(["major", "minor", "patch"]))
+@click.option(
+    "--addon-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the addon directory containing addon.xml",
+)
+@click.option("--news", help="News/changelog entry for this version")
+@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
+@click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
+@click.option(
+    "--repo-path", type=click.Path(exists=True, dir_okay=True, file_okay=False), help="Path to the git repository"
+)
+@click.option("--remote", default="origin", help="Remote name (default: origin)")
+@click.option("--branch", "-b", help="Branch to push (default: current branch)")
+@click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
+@click.option("--allow-empty-commit", is_flag=True, help="Allow empty commits")
+def release(
+    bump_type, addon_path, news, non_interactive, dry_run, repo_path, remote, branch, no_pre_commit, allow_empty_commit
+):
     """Bump version, commit, tag, and push in one command."""
     # Find addon.xml
     if addon_path:
         addon_dir = Path(addon_path)
-        addon_xml_path = addon_dir / 'addon.xml'
+        addon_xml_path = addon_dir / "addon.xml"
         if not addon_xml_path.exists():
             raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
     else:
@@ -353,14 +380,19 @@ def release(bump_type, addon_path, news, non_interactive, dry_run, repo_path, re
     # Get repo
     try:
         repo = get_repo(Path(repo_path) if repo_path else None)
+        # Check git cleanliness
+        if repo.is_dirty():
+            raise click.ClickException(
+                "Working directory has uncommitted changes. Please commit or stash them before releasing."
+            )
     except ValueError as e:
         raise click.ClickException(str(e))  # pragma: no cover
 
     click.echo(f"Repository: {repo.working_dir}")
 
     # Update XML
-    root.set('version', new_version)
-    tree.write(addon_xml_path, encoding='UTF-8', xml_declaration=True)
+    root.set("version", new_version)
+    tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
     click.echo(f"Updated addon.xml with version {new_version}")
 
     # Run pre-commit hooks
@@ -419,5 +451,5 @@ main.add_command(bump)
 main.add_command(commit)
 main.add_command(tag)
 main.add_command(push)
-main.add_command(zip_cmd, name='zip')
+main.add_command(zip_cmd, name="zip")
 main.add_command(release)

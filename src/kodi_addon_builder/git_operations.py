@@ -24,20 +24,21 @@ def run_pre_commit_hooks(repo: Repo) -> None:
     """Run pre-commit hooks if available."""
     # Check if pre-commit is installed
     try:
-        subprocess.run(['pre-commit', '--version'], capture_output=True, check=True)
+        subprocess.run(["pre-commit", "--version"], capture_output=True, check=True)
         pre_commit_available = True
     except (subprocess.CalledProcessError, FileNotFoundError):
         pre_commit_available = False
 
     if pre_commit_available:
         # Check if pre-commit config exists
-        config_files = ['.pre-commit-config.yaml', '.pre-commit-config.yml']
+        config_files = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
         config_exists = any(os.path.exists(os.path.join(repo.working_dir, config)) for config in config_files)
 
         if config_exists:
             click.echo("Running pre-commit hooks...")
-            result = subprocess.run(['pre-commit', 'run', '--all-files'],
-                                  cwd=repo.working_dir, capture_output=True, text=True)
+            result = subprocess.run(
+                ["pre-commit", "run", "--all-files"], cwd=repo.working_dir, capture_output=True, text=True
+            )
             if result.returncode != 0:
                 raise ValueError(f"Pre-commit hooks failed:\n{result.stdout}\n{result.stderr}")
 
@@ -47,12 +48,12 @@ def stage_changes(repo: Repo, files: Optional[list[str]] = None) -> None:
     if files:
         repo.index.add(files)
     else:
-        repo.index.add('*')
+        repo.index.add("*")
 
 
 def commit_changes(repo: Repo, message: str, allow_empty: bool = False) -> str:
     """Commit staged changes."""
-    if not allow_empty and not repo.index.diff('HEAD', cached=True):
+    if not allow_empty and not repo.index.diff("HEAD", cached=True):
         raise ValueError("No changes to commit")
 
     commit = repo.index.commit(message)
@@ -72,7 +73,7 @@ def create_tag(repo: Repo, tag_name: str, message: Optional[str] = None) -> None
         repo.create_tag(tag_name)
 
 
-def push_commits(repo: Repo, remote_name: str = 'origin', branch: Optional[str] = None) -> None:
+def push_commits(repo: Repo, remote_name: str = "origin", branch: Optional[str] = None) -> None:
     """Push commits to remote."""
     if branch is None:
         branch = repo.active_branch.name
@@ -84,7 +85,7 @@ def push_commits(repo: Repo, remote_name: str = 'origin', branch: Optional[str] 
         raise ValueError(f"Failed to push to remote '{remote_name}': {e}")
 
 
-def push_tags(repo: Repo, remote_name: str = 'origin', tags: Optional[list[str]] = None) -> None:
+def push_tags(repo: Repo, remote_name: str = "origin", tags: Optional[list[str]] = None) -> None:
     """Push tags to remote."""
     try:
         origin = repo.remote(remote_name)
@@ -108,17 +109,22 @@ def checkout_branch(repo: Repo, branch_name: str) -> None:
         repo.git.checkout(branch_name)
     else:
         # Create and checkout new branch
-        repo.git.checkout('-b', branch_name)
+        repo.git.checkout("-b", branch_name)
 
 
-def create_zip_archive(repo: Repo, output_path: Path, commit: str = 'HEAD',
-                      paths: Optional[list[str]] = None, excludes: Optional[list[str]] = None) -> None:
+def create_zip_archive(
+    repo: Repo,
+    output_path: Path,
+    commit: str = "HEAD",
+    paths: Optional[list[str]] = None,
+    excludes: Optional[list[str]] = None,
+) -> None:
     """Create a zip archive using git archive."""
-    cmd = ['git', 'archive', '--format=zip', f'--output={output_path}', commit]
+    cmd = ["git", "archive", "--format=zip", f"--output={output_path}", commit]
 
     if paths:
         # Add specific paths to archive
-        cmd.extend(['--'] + paths)
+        cmd.extend(["--"] + paths)
 
     # Run the command
     try:

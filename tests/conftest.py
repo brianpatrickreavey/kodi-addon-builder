@@ -1,8 +1,6 @@
 """Test configuration and fixtures for kodi-addon-builder."""
 
 import pytest
-from pathlib import Path
-import xml.etree.ElementTree as ET
 
 
 @pytest.fixture

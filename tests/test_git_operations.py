@@ -7,9 +7,17 @@ import subprocess
 import git
 
 from kodi_addon_builder.git_operations import (
-    get_repo, run_pre_commit_hooks, stage_changes, commit_changes,
-    create_tag, push_commits, push_tags, get_current_branch, checkout_branch,
-    create_zip_archive, get_addon_relative_path
+    get_repo,
+    run_pre_commit_hooks,
+    stage_changes,
+    commit_changes,
+    create_tag,
+    push_commits,
+    push_tags,
+    get_current_branch,
+    checkout_branch,
+    create_zip_archive,
+    get_addon_relative_path,
 )
 
 
@@ -22,7 +30,7 @@ class TestGetRepo:
         repo_dir = tmp_path / "repo"
         repo_dir.mkdir()
 
-        with patch('kodi_addon_builder.git_operations.Repo') as mock_repo_class:
+        with patch("kodi_addon_builder.git_operations.Repo") as mock_repo_class:
             mock_repo = MagicMock()
             mock_repo_class.return_value = mock_repo
 
@@ -35,19 +43,20 @@ class TestGetRepo:
         repo_dir = tmp_path / "not_repo"
         repo_dir.mkdir()
 
-        with patch('git.Repo', side_effect=git.InvalidGitRepositoryError("Not a repo")):
+        with patch("git.Repo", side_effect=git.InvalidGitRepositoryError("Not a repo")):
             with pytest.raises(ValueError, match="Not a git repository"):
                 get_repo(repo_dir)
 
     def test_get_repo_default_cwd(self):
         """Test getting repo with default cwd."""
-        with patch('pathlib.Path.cwd', return_value=Path('/fake/cwd')), \
-             patch('kodi_addon_builder.git_operations.Repo') as mock_repo_class:
+        with patch("pathlib.Path.cwd", return_value=Path("/fake/cwd")), patch(
+            "kodi_addon_builder.git_operations.Repo"
+        ) as mock_repo_class:
             mock_repo = MagicMock()
             mock_repo_class.return_value = mock_repo
 
-            result = get_repo()
-            mock_repo_class.assert_called_once_with(Path('/fake/cwd'), search_parent_directories=True)
+            get_repo()
+            mock_repo_class.assert_called_once_with(Path("/fake/cwd"), search_parent_directories=True)
 
 
 class TestRunPreCommitHooks:
@@ -58,7 +67,7 @@ class TestRunPreCommitHooks:
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
 
-        with patch('subprocess.run', side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
             # Should not raise
             run_pre_commit_hooks(mock_repo)
 
@@ -67,8 +76,7 @@ class TestRunPreCommitHooks:
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
 
-        with patch('subprocess.run') as mock_run, \
-             patch('pathlib.Path') as mock_path_class:
+        with patch("subprocess.run") as mock_run, patch("pathlib.Path") as mock_path_class:
             mock_run.return_value = MagicMock(returncode=0)  # pre-commit --version succeeds
             mock_path = MagicMock()
             mock_path.exists.return_value = False
@@ -78,39 +86,37 @@ class TestRunPreCommitHooks:
             # Should not run pre-commit
             assert mock_run.call_count == 1  # Only the version check
 
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.click")
     def test_pre_commit_success(self, mock_click):
         """Test successful pre-commit run."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
 
-        with patch('subprocess.run') as mock_run, \
-             patch('os.path.exists') as mock_exists:
+        with patch("subprocess.run") as mock_run, patch("os.path.exists") as mock_exists:
             # Mock pre-commit available
             version_result = MagicMock(returncode=0)
             run_result = MagicMock(returncode=0, stdout="", stderr="")
             mock_run.side_effect = [version_result, run_result]
 
             # Mock config exists
-            mock_exists.side_effect = lambda p: 'pre-commit-config' in str(p)
+            mock_exists.side_effect = lambda p: "pre-commit-config" in str(p)
 
             run_pre_commit_hooks(mock_repo)
 
             expected_calls = [
-                call(['pre-commit', '--version'], capture_output=True, check=True),
-                call(['pre-commit', 'run', '--all-files'], cwd='/fake/repo', capture_output=True, text=True)
+                call(["pre-commit", "--version"], capture_output=True, check=True),
+                call(["pre-commit", "run", "--all-files"], cwd="/fake/repo", capture_output=True, text=True),
             ]
             mock_run.assert_has_calls(expected_calls)
             mock_click.echo.assert_called_once_with("Running pre-commit hooks...")
 
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.click")
     def test_pre_commit_failure(self, mock_click):
         """Test pre-commit run failure."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
 
-        with patch('subprocess.run') as mock_run, \
-             patch('os.path.exists', return_value=True):
+        with patch("subprocess.run") as mock_run, patch("os.path.exists", return_value=True):
             version_result = MagicMock(returncode=0)
             run_result = MagicMock(returncode=1, stdout="stdout", stderr="stderr")
             mock_run.side_effect = [version_result, run_result]
@@ -125,7 +131,7 @@ class TestStageChanges:
     def test_stage_specific_files(self):
         """Test staging specific files."""
         mock_repo = MagicMock()
-        files = ['file1.txt', 'file2.txt']
+        files = ["file1.txt", "file2.txt"]
 
         stage_changes(mock_repo, files)
         mock_repo.index.add.assert_called_once_with(files)
@@ -135,7 +141,7 @@ class TestStageChanges:
         mock_repo = MagicMock()
 
         stage_changes(mock_repo)
-        mock_repo.index.add.assert_called_once_with('*')
+        mock_repo.index.add.assert_called_once_with("*")
 
 
 class TestCommitChanges:
@@ -218,7 +224,7 @@ class TestPushCommits:
         mock_repo.remote.return_value = mock_remote
 
         push_commits(mock_repo)
-        mock_repo.remote.assert_called_once_with('origin')
+        mock_repo.remote.assert_called_once_with("origin")
         mock_remote.push.assert_called_once_with("main")
 
     def test_push_specific_branch(self):
@@ -302,14 +308,14 @@ class TestCheckoutBranch:
         mock_repo.branches = []  # No existing branches
 
         checkout_branch(mock_repo, "new-branch")
-        mock_repo.git.checkout.assert_called_once_with('-b', "new-branch")
+        mock_repo.git.checkout.assert_called_once_with("-b", "new-branch")
 
 
 class TestCreateZipArchive:
     """Test create_zip_archive function."""
 
-    @patch('kodi_addon_builder.git_operations.subprocess.run')
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.subprocess.run")
+    @patch("kodi_addon_builder.git_operations.click")
     def test_create_zip_full_repo(self, mock_click, mock_run):
         """Test creating zip archive of full repo."""
         mock_repo = MagicMock()
@@ -320,11 +326,11 @@ class TestCreateZipArchive:
 
         create_zip_archive(mock_repo, output_path)
 
-        expected_cmd = ['git', 'archive', '--format=zip', '--output=/output/test.zip', 'HEAD']
-        mock_run.assert_called_once_with(expected_cmd, cwd='/fake/repo', capture_output=True, text=True, check=True)
+        expected_cmd = ["git", "archive", "--format=zip", "--output=/output/test.zip", "HEAD"]
+        mock_run.assert_called_once_with(expected_cmd, cwd="/fake/repo", capture_output=True, text=True, check=True)
 
-    @patch('kodi_addon_builder.git_operations.subprocess.run')
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.subprocess.run")
+    @patch("kodi_addon_builder.git_operations.click")
     def test_create_zip_with_paths(self, mock_click, mock_run):
         """Test creating zip archive with specific paths."""
         mock_repo = MagicMock()
@@ -336,11 +342,20 @@ class TestCreateZipArchive:
 
         create_zip_archive(mock_repo, output_path, paths=paths)
 
-        expected_cmd = ['git', 'archive', '--format=zip', '--output=/output/test.zip', 'HEAD', '--', 'addon/', 'README.md']
-        mock_run.assert_called_once_with(expected_cmd, cwd='/fake/repo', capture_output=True, text=True, check=True)
+        expected_cmd = [
+            "git",
+            "archive",
+            "--format=zip",
+            "--output=/output/test.zip",
+            "HEAD",
+            "--",
+            "addon/",
+            "README.md",
+        ]
+        mock_run.assert_called_once_with(expected_cmd, cwd="/fake/repo", capture_output=True, text=True, check=True)
 
-    @patch('kodi_addon_builder.git_operations.subprocess.run')
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.subprocess.run")
+    @patch("kodi_addon_builder.git_operations.click")
     def test_create_zip_custom_commit(self, mock_click, mock_run):
         """Test creating zip archive with custom commit."""
         mock_repo = MagicMock()
@@ -351,11 +366,11 @@ class TestCreateZipArchive:
 
         create_zip_archive(mock_repo, output_path, commit="v1.0.0")
 
-        expected_cmd = ['git', 'archive', '--format=zip', '--output=/output/test.zip', 'v1.0.0']
-        mock_run.assert_called_once_with(expected_cmd, cwd='/fake/repo', capture_output=True, text=True, check=True)
+        expected_cmd = ["git", "archive", "--format=zip", "--output=/output/test.zip", "v1.0.0"]
+        mock_run.assert_called_once_with(expected_cmd, cwd="/fake/repo", capture_output=True, text=True, check=True)
 
-    @patch('kodi_addon_builder.git_operations.subprocess.run')
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.subprocess.run")
+    @patch("kodi_addon_builder.git_operations.click")
     def test_create_zip_with_stderr(self, mock_click, mock_run):
         """Test creating zip archive with stderr output."""
         mock_repo = MagicMock()
@@ -368,20 +383,20 @@ class TestCreateZipArchive:
 
         mock_click.echo.assert_called_once_with("Warning: warning message")
 
-    @patch('kodi_addon_builder.git_operations.subprocess.run')
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.subprocess.run")
+    @patch("kodi_addon_builder.git_operations.click")
     def test_create_zip_failure(self, mock_click, mock_run):
         """Test zip archive creation failure."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
         output_path = Path("/output/test.zip")
 
-        mock_run.side_effect = subprocess.CalledProcessError(1, 'git', stderr="error message")
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git", stderr="error message")
 
         with pytest.raises(ValueError, match="Failed to create zip archive: error message"):
             create_zip_archive(mock_repo, output_path)
 
-    @patch('kodi_addon_builder.git_operations.click')
+    @patch("kodi_addon_builder.git_operations.click")
     def test_create_zip_with_excludes(self, mock_click):
         """Test creating zip archive with exclusions (not yet implemented)."""
         mock_repo = MagicMock()
@@ -389,7 +404,7 @@ class TestCreateZipArchive:
         output_path = Path("/output/test.zip")
         excludes = ["*.tmp", "build/"]
 
-        with patch('kodi_addon_builder.git_operations.subprocess.run') as mock_run:
+        with patch("kodi_addon_builder.git_operations.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stderr="")
 
             create_zip_archive(mock_repo, output_path, excludes=excludes)
