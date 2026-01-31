@@ -4,8 +4,11 @@ import pytest
 from click.testing import CliRunner
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+import git
+import tempfile
+import zipfile
 
-from kodi_addon_builder.cli import commit, tag, push
+from kodi_addon_builder.cli import commit, tag, push, zip_cmd
 
 
 class TestCommitCommand:
@@ -333,3 +336,406 @@ class TestPushCommand:
             result = self.runner.invoke(push, ['--repo-path', tmpdir])
             assert result.exit_code == 0
             mock_get_repo.assert_called_once_with(Path(tmpdir))
+
+
+class TestZipCommand:
+    """Test the zip CLI command."""
+
+    def setup_method(self):
+        """Set up test runner."""
+        self.runner = CliRunner()
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    @patch('kodi_addon_builder.cli.get_addon_relative_path')
+    def test_zip_addon_only_success(self, mock_get_rel_path, mock_create_zip,
+                                   mock_validate_xml, mock_find_xml, mock_get_repo):
+        """Test successful zip creation for addon-only."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/fake/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        # Mock XML validation
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_get_rel_path.return_value = "plugin.video.test"
+
+        result = self.runner.invoke(zip_cmd, [])
+        assert result.exit_code == 0
+        assert "Repository: /fake/repo" in result.output
+        assert "Found addon.xml at: /fake/repo/plugin.video.test/addon.xml" in result.output
+        assert "Addon ID: plugin.video.test, Version: 1.0.0" in result.output
+        assert "Archiving addon directory: plugin.video.test" in result.output
+        assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
+
+        mock_create_zip.assert_called_once_with(mock_repo, Path("plugin.video.test-1.0.0.zip"), 'HEAD', ["plugin.video.test"], None)
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    def test_zip_full_repo_success(self, mock_create_zip, mock_validate_xml,
+                                  mock_find_xml, mock_get_repo):
+        """Test successful zip creation for full repo."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/fake/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        result = self.runner.invoke(zip_cmd, ['--full-repo'])
+        assert result.exit_code == 0
+        assert "Archiving full repository" in result.output
+
+        mock_create_zip.assert_called_once_with(mock_repo, Path("plugin.video.test-1.0.0.zip"), 'HEAD', None, None)
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    def test_zip_custom_output(self, mock_create_zip, mock_validate_xml,
+                              mock_find_xml, mock_get_repo):
+        """Test zip with custom output path."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        with patch('kodi_addon_builder.cli.get_addon_relative_path', return_value="plugin.video.test"):
+            result = self.runner.invoke(zip_cmd, ['--output', '/custom/output.zip'])
+            assert result.exit_code == 0
+
+        mock_create_zip.assert_called_once_with(mock_repo, Path("/custom/output.zip"), 'HEAD', ["plugin.video.test"], None)
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    def test_zip_custom_commit(self, mock_create_zip, mock_validate_xml,
+                              mock_find_xml, mock_get_repo):
+        """Test zip with custom commit."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        with patch('kodi_addon_builder.cli.get_addon_relative_path', return_value="plugin.video.test"):
+            result = self.runner.invoke(zip_cmd, ['--commit', 'v1.0.0'])
+            assert result.exit_code == 0
+
+        mock_create_zip.assert_called_once_with(mock_repo, Path("plugin.video.test-1.0.0.zip"), 'v1.0.0', ["plugin.video.test"], None)
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    def test_zip_with_excludes(self, mock_create_zip, mock_validate_xml,
+                              mock_find_xml, mock_get_repo):
+        """Test zip with exclusions."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        with patch('kodi_addon_builder.cli.get_addon_relative_path', return_value="plugin.video.test"):
+            result = self.runner.invoke(zip_cmd, ['--exclude', '*.tmp', '--exclude', 'build/'])
+            assert result.exit_code == 0
+
+        mock_create_zip.assert_called_once_with(mock_repo, Path("plugin.video.test-1.0.0.zip"), 'HEAD', ["plugin.video.test"], ['*.tmp', 'build/'])
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    def test_zip_no_repo(self, mock_get_repo):
+        """Test zip with no git repository."""
+        mock_get_repo.side_effect = ValueError("Not a git repository")
+
+        result = self.runner.invoke(zip_cmd, [])
+        assert result.exit_code == 1
+        assert "Not a git repository" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    def test_zip_no_addon_xml(self, mock_find_xml, mock_get_repo):
+        """Test zip with no addon.xml found."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+        mock_find_xml.return_value = None
+
+        result = self.runner.invoke(zip_cmd, [])
+        assert result.exit_code == 1
+        assert "Could not find addon.xml" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    def test_zip_invalid_addon_xml(self, mock_validate_xml, mock_find_xml, mock_get_repo):
+        """Test zip with invalid addon.xml."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+        mock_validate_xml.side_effect = ValueError("Invalid XML")
+
+        result = self.runner.invoke(zip_cmd, [])
+        assert result.exit_code == 1
+        assert "Invalid addon.xml: Invalid XML" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    def test_zip_missing_addon_id(self, mock_create_zip, mock_validate_xml,
+                                  mock_find_xml, mock_get_repo):
+        """Test zip with addon.xml missing id."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.return_value = None  # No id
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        result = self.runner.invoke(zip_cmd, [])
+        assert result.exit_code == 1
+        assert "addon.xml missing 'id' attribute" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    def test_zip_archive_failure(self, mock_create_zip, mock_validate_xml,
+                                mock_find_xml, mock_get_repo):
+        """Test zip with archive creation failure."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_create_zip.side_effect = ValueError("Archive creation failed")
+
+        with patch('kodi_addon_builder.cli.get_addon_relative_path', return_value="plugin.video.test"):
+            result = self.runner.invoke(zip_cmd, [])
+            assert result.exit_code == 1
+            assert "Archive creation failed" in result.output
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    @patch('kodi_addon_builder.cli.get_addon_relative_path')
+    def test_zip_with_addon_path(self, mock_get_rel_path, mock_create_zip,
+                                mock_validate_xml, mock_find_xml, mock_get_repo):
+        """Test zip with custom addon path."""
+        mock_repo = MagicMock()
+        mock_get_repo.return_value = mock_repo
+
+        # Custom addon path
+        mock_validate_xml.return_value = (MagicMock(), MagicMock(), "1.0.0")
+        mock_get_rel_path.return_value = "addon"
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a fake addon.xml in the temp dir
+            addon_xml = Path(tmpdir) / 'addon.xml'
+            addon_xml.write_text('<addon id="test" version="1.0.0"/>')
+            
+            result = self.runner.invoke(zip_cmd, ['--addon-path', tmpdir])
+            assert result.exit_code == 0
+            # Should not call find_addon_xml when addon_path is provided
+            mock_find_xml.assert_not_called()
+
+    @patch('kodi_addon_builder.cli.get_repo')
+    @patch('kodi_addon_builder.cli.find_addon_xml')
+    @patch('kodi_addon_builder.cli.validate_addon_xml')
+    @patch('kodi_addon_builder.cli.create_zip_archive')
+    @patch('kodi_addon_builder.cli.get_addon_relative_path')
+    def test_zip_with_repo_path(self, mock_get_rel_path, mock_create_zip,
+                               mock_validate_xml, mock_find_xml, mock_get_repo):
+        """Test zip with custom repo path."""
+        mock_repo = MagicMock()
+        mock_repo.working_dir = "/custom/repo"
+        mock_get_repo.return_value = mock_repo
+
+        addon_xml_path = Path("/custom/repo/plugin.video.test/addon.xml")
+        mock_find_xml.return_value = addon_xml_path
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.side_effect = lambda key: {"id": "plugin.video.test", "version": "1.0.0"}.get(key)
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = self.runner.invoke(zip_cmd, ['--repo-path', tmpdir])
+            assert result.exit_code == 0
+            mock_get_repo.assert_called_once_with(Path(tmpdir))
+
+
+class TestZipCommandIntegration:
+    """Integration tests for the zip CLI command."""
+
+    def setup_method(self):
+        """Set up test runner."""
+        self.runner = CliRunner()
+
+    def test_zip_addon_integration(self, tmp_path, sample_addon_xml_content):
+        """Integration test: create git repo with addon, zip it."""
+        # Create a temporary git repository
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+        
+        # Initialize git repo
+        repo = git.Repo.init(repo_dir)
+        
+        # Create addon structure
+        addon_dir = repo_dir / "plugin.video.test"
+        addon_dir.mkdir()
+        lib_dir = addon_dir / "lib"
+        lib_dir.mkdir()
+        
+        # Create addon.xml
+        addon_xml = addon_dir / "addon.xml"
+        addon_xml.write_text(sample_addon_xml_content)
+        
+        # Create some addon files
+        main_py = lib_dir / "main.py"
+        main_py.write_text("# Main addon file")
+        
+        resources_dir = addon_dir / "resources"
+        resources_dir.mkdir()
+        settings_xml = resources_dir / "settings.xml"
+        settings_xml.write_text("<settings></settings>")
+        
+        # Add and commit files
+        repo.index.add("*")
+        repo.index.commit("Initial commit")
+        
+        # Test zip command
+        with self.runner.isolated_filesystem():
+            # Change to repo directory
+            import os
+            old_cwd = os.getcwd()
+            os.chdir(str(repo_dir))
+            
+            try:
+                result = self.runner.invoke(zip_cmd, [])
+                assert result.exit_code == 0
+                assert "Repository:" in result.output
+                assert "Found addon.xml at:" in result.output
+                assert "Addon ID: plugin.video.test, Version: 1.0.0" in result.output
+                assert "Archiving addon directory: plugin.video.test" in result.output
+                assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
+                
+                # Check that zip file was created
+                zip_path = repo_dir / "plugin.video.test-1.0.0.zip"
+                assert zip_path.exists()
+                
+                # Verify zip contents
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    # Should contain addon files but not repo files like .git
+                    files = zf.namelist()
+                    assert "plugin.video.test/addon.xml" in files
+                    assert "plugin.video.test/lib/main.py" in files
+                    assert "plugin.video.test/resources/settings.xml" in files
+                    # Should not contain .git directory
+                    assert not any(f.startswith('.git') for f in files)
+                    
+            finally:
+                os.chdir(old_cwd)
+
+    def test_zip_full_repo_integration(self, tmp_path, sample_addon_xml_content):
+        """Integration test: zip full repository."""
+        # Create a temporary git repository
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+        
+        # Initialize git repo
+        repo = git.Repo.init(repo_dir)
+        
+        # Create addon structure
+        addon_dir = repo_dir / "plugin.video.test"
+        addon_dir.mkdir()
+        
+        # Create addon.xml
+        addon_xml = addon_dir / "addon.xml"
+        addon_xml.write_text(sample_addon_xml_content)
+        
+        # Create some repo-level files
+        readme = repo_dir / "README.md"
+        readme.write_text("# Test Addon")
+        
+        makefile = repo_dir / "Makefile"
+        makefile.write_text("test:\n\techo 'test'")
+        
+        # Add and commit files
+        repo.index.add("*")
+        repo.index.commit("Initial commit")
+        
+        # Test zip command with --full-repo
+        with self.runner.isolated_filesystem():
+            import os
+            old_cwd = os.getcwd()
+            os.chdir(str(repo_dir))
+            
+            try:
+                result = self.runner.invoke(zip_cmd, ['--full-repo'])
+                assert result.exit_code == 0
+                assert "Archiving full repository" in result.output
+                assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
+                
+                # Check that zip file was created
+                zip_path = repo_dir / "plugin.video.test-1.0.0.zip"
+                assert zip_path.exists()
+                
+                # Verify zip contents
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    files = zf.namelist()
+                    assert "plugin.video.test/addon.xml" in files
+                    assert "README.md" in files
+                    assert "Makefile" in files
+                    # Should not contain .git directory
+                    assert not any(f.startswith('.git') for f in files)
+                    
+            finally:
+                os.chdir(old_cwd)

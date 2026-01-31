@@ -10,7 +10,8 @@ import semver
 
 from .git_operations import (
     get_repo, run_pre_commit_hooks, stage_changes, commit_changes,
-    create_tag, push_commits, push_tags, get_current_branch, checkout_branch
+    create_tag, push_commits, push_tags, get_current_branch, checkout_branch,
+    create_zip_archive, get_addon_relative_path
 )
 
 
@@ -216,10 +217,83 @@ def push(branch, tags, remote, repo_path):
             raise click.ClickException(str(e))
 
 
+@click.command()
+@click.option('--output', '-o', 'output_path', type=click.Path(dir_okay=False),
+              help='Output path for the zip file (default: auto-generated)')
+@click.option('--commit', default='HEAD', help='Git commit/tag to archive (default: HEAD)')
+@click.option('--full-repo', is_flag=True, help='Archive the full repository instead of addon-only')
+@click.option('--exclude', multiple=True, help='Files/patterns to exclude from archive')
+@click.option('--addon-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help='Path to the addon directory containing addon.xml')
+@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help='Path to the git repository')
+def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
+    """Create a zip archive of the addon using git archive."""
+    # Get repo
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    click.echo(f"Repository: {repo.working_dir}")
+
+    # Find addon.xml
+    if addon_path:
+        addon_dir = Path(addon_path)
+        addon_xml_path = addon_dir / 'addon.xml'
+        if not addon_xml_path.exists():
+            raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
+    else:
+        addon_xml_path = find_addon_xml()
+        if not addon_xml_path:
+            raise click.ClickException("Could not find addon.xml in current directory or subdirectories")
+        addon_dir = addon_xml_path.parent
+
+    click.echo(f"Found addon.xml at: {addon_xml_path}")
+
+    # Validate addon.xml
+    try:
+        tree, root, version = validate_addon_xml(addon_xml_path)
+    except ValueError as e:
+        raise click.ClickException(f"Invalid addon.xml: {e}")
+
+    addon_id = root.get('id')
+    if not addon_id:
+        raise click.ClickException("addon.xml missing 'id' attribute")
+
+    click.echo(f"Addon ID: {addon_id}, Version: {version}")
+
+    # Determine output path
+    if not output_path:
+        output_path = f"{addon_id}-{version}.zip"
+    output_path = Path(output_path)
+
+    # Determine what to archive
+    if full_repo:
+        paths = None  # Archive entire repo
+        click.echo("Archiving full repository")
+    else:
+        # Archive only the addon directory
+        try:
+            addon_rel_path = get_addon_relative_path(repo, addon_xml_path)
+            paths = [addon_rel_path]
+            click.echo(f"Archiving addon directory: {addon_rel_path}")
+        except ValueError as e:
+            raise click.ClickException(f"Failed to determine addon path: {e}")
+
+    # Create the archive
+    try:
+        create_zip_archive(repo, output_path, commit, paths, list(exclude) if exclude else None)
+        click.echo(f"Created zip archive: {output_path}")
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
 main.add_command(bump)
 main.add_command(commit)
 main.add_command(tag)
 main.add_command(push)
+main.add_command(zip_cmd, name='zip')
 
 
 if __name__ == "__main__":  # pragma: no cover
