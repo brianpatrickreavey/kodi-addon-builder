@@ -786,6 +786,7 @@ class TestReleaseCommand:
         """Test successful release."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
+        mock_repo.is_dirty.return_value = False
         mock_get_repo.return_value = mock_repo
 
         addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
@@ -885,6 +886,7 @@ class TestReleaseCommand:
         """Test release with news/changelog."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
+        mock_repo.is_dirty.return_value = False
         mock_get_repo.return_value = mock_repo
 
         addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
@@ -939,6 +941,7 @@ class TestReleaseCommand:
         """Test release with custom remote, branch, and options."""
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
+        mock_repo.is_dirty.return_value = False
         mock_get_repo.return_value = mock_repo
 
         addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
@@ -1066,6 +1069,7 @@ class TestReleaseCommand:
         mock_bump_version.return_value = "1.1.0"
         mock_repo = MagicMock()
         mock_repo.working_dir = "/fake/repo"
+        mock_repo.is_dirty.return_value = False
         mock_get_repo.return_value = mock_repo
         mock_run_pre_commit.side_effect = ValueError("Pre-commit hooks failed")
 

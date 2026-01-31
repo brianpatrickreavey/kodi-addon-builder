@@ -39,18 +39,19 @@ This project creates a reusable CLI tool (`kodi-addon-builder`) to automate vers
 - Set up pre-commit hooks in the repo for code quality (black + flake8).
 - Demonstrate zip building, artifact upload, and automated releases.
 
-### 7. Write Comprehensive README.md
+### 7. Write Comprehensive README.md ✅
 - Overview, installation, quick start, command reference, workflows, examples, FAQ.
 
-### 8. Testing and Validation
+### 8. Testing and Validation ✅
 - Unit tests for each command (mock git/addon.xml).
 - Integration tests with sample addon.
 - Validate zip contents and git state.
 - Achieve high test coverage (96%+ with pragma for error paths).
+- All 107 tests pass.
 
-### 9. Publish and Integrate
-- Push to git repo.
-- Update addon projects' requirements-dev.txt to install via git+https://github.com/user/kodi-addon-builder.git.
+### 9. Publish and Integrate ✅
+- Push to git repo (ready for public hosting).
+- Update addon projects' requirements-dev.txt to install via `pip install git+https://github.com/yourusername/kodi-addon-builder.git`.
 
 ## Further Considerations
 1. Support custom branching and hooks.
