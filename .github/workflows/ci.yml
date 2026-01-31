@@ -32,6 +32,18 @@ jobs:
         pip install -e .[dev]
         pip install pyright black flake8 flake8-pyproject pytest-cov
 
+    - name: Run type checking (Pyright)
+      run: |
+        pyright src/
+
+    - name: Check formatting (Black)
+      run: |
+        black --check --diff src/ tests/
+
+    - name: Lint (Flake8)
+      run: |
+        flake8 src/ tests/
+
     - name: Run tests with coverage
       run: |
         python -m pytest --cov=src/kodi_addon_builder --cov-report=xml --cov-report=html
@@ -57,15 +69,3 @@ jobs:
         git add coverage-badge.svg
         git commit -m "Update coverage badge" || echo 'No changes to commit'
         git push origin badges
-
-    - name: Run type checking (Pyright)
-      run: |
-        pyright src/
-
-    - name: Check formatting (Black)
-      run: |
-        black --check --diff src/ tests/
-
-    - name: Lint (Flake8)
-      run: |
-        flake8 src/ tests/
