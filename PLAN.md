@@ -14,12 +14,14 @@ This project creates a reusable CLI tool (`kodi-addon-builder`) to automate vers
 - Create `bump` subcommand to parse and update addon.xml (detect path dynamically or via --addon-path).
 - Support bump types (major/minor/patch), news input, non-interactive mode, and dry-run.
 - Validate addon.xml structure and version format.
+- Include comprehensive unit and integration tests.
 
 ### 3. Implement Git Operations
 - Add `commit` subcommand to stage and commit changes with custom messages.
 - Add `tag` subcommand to create and push tags (e.g., v1.0.0).
 - Add `push` subcommand for pushing commits and tags.
 - Support custom branching and pre-commit hook checks.
+- Include comprehensive unit and integration tests.
 
 ### 4. Implement Zip Generation
 - Create `zip` subcommand using `git archive` for local artifacts.

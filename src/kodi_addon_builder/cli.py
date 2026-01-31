@@ -8,6 +8,11 @@ from pathlib import Path
 import click
 import semver
 
+from .git_operations import (
+    get_repo, run_pre_commit_hooks, stage_changes, commit_changes,
+    create_tag, push_commits, push_tags, get_current_branch, checkout_branch
+)
+
 
 @click.group()
 @click.version_option(version="0.1.0")
@@ -121,7 +126,100 @@ def bump(bump_type, addon_path, news, non_interactive, dry_run):
     click.echo(f"Updated addon.xml with version {new_version}")
 
 
+@click.command()
+@click.option('--message', '-m', required=True, help='Commit message')
+@click.option('--files', multiple=True, help='Specific files to stage (default: all changes)')
+@click.option('--allow-empty', is_flag=True, help='Allow empty commits')
+@click.option('--no-pre-commit', is_flag=True, help='Skip pre-commit hook checks')
+@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help='Path to the git repository')
+def commit(message, files, allow_empty, no_pre_commit, repo_path):
+    """Stage and commit changes with a custom message."""
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    click.echo(f"Repository: {repo.working_dir}")
+
+    # Run pre-commit hooks
+    if not no_pre_commit:
+        try:
+            run_pre_commit_hooks(repo)
+        except ValueError as e:
+            raise click.ClickException(str(e))
+
+    # Stage changes
+    try:
+        stage_changes(repo, list(files) if files else None)
+    except Exception as e:
+        raise click.ClickException(f"Failed to stage changes: {e}")
+
+    # Commit
+    try:
+        commit_hash = commit_changes(repo, message, allow_empty)
+        click.echo(f"Committed changes: {commit_hash}")
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
+@click.command()
+@click.argument('tag_name')
+@click.option('--message', '-m', help='Tag message (creates annotated tag)')
+@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help='Path to the git repository')
+def tag(tag_name, message, repo_path):
+    """Create a git tag."""
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    click.echo(f"Repository: {repo.working_dir}")
+
+    try:
+        create_tag(repo, tag_name, message)
+        click.echo(f"Created tag: {tag_name}")
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
+@click.command()
+@click.option('--branch', '-b', help='Branch to push (default: current branch)')
+@click.option('--tags', is_flag=True, help='Also push tags')
+@click.option('--remote', default='origin', help='Remote name (default: origin)')
+@click.option('--repo-path', type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help='Path to the git repository')
+def push(branch, tags, remote, repo_path):
+    """Push commits and optionally tags to remote."""
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    click.echo(f"Repository: {repo.working_dir}")
+
+    # Push commits
+    try:
+        push_commits(repo, remote, branch)
+        current_branch = branch or get_current_branch(repo)
+        click.echo(f"Pushed branch: {current_branch}")
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    # Push tags if requested
+    if tags:
+        try:
+            push_tags(repo, remote)
+            click.echo("Pushed tags")
+        except ValueError as e:
+            raise click.ClickException(str(e))
+
+
 main.add_command(bump)
+main.add_command(commit)
+main.add_command(tag)
+main.add_command(push)
 
 
 if __name__ == "__main__":  # pragma: no cover
