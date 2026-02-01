@@ -3,8 +3,18 @@
 import tomllib
 from pathlib import Path
 
-# Read version from pyproject.toml
-pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
-with open(pyproject_path, "rb") as f:
-    data = tomllib.load(f)
-__version__ = data["project"]["version"]
+_version = "unknown"
+
+def _load_version(path=None):
+    global _version
+    pyproject_path = Path(path) if path else Path.cwd() / "pyproject.toml"
+    try:
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+        _version = data["project"]["version"]
+    except (FileNotFoundError, KeyError):
+        _version = "unknown"
+
+_load_version()
+
+__version__ = _version

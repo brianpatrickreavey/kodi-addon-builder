@@ -21,11 +21,18 @@ from .git_operations import (
     get_addon_relative_path,
 )
 
+from . import __version__
 
+
+@click.option('--pyproject-file', type=click.Path(exists=True), help='Path to pyproject.toml for version info')
 @click.group()
-@click.version_option(version="0.1.0")
-def main():
+def main(pyproject_file):
     """CLI tool for Kodi addon version management and packaging."""
+    if pyproject_file:
+        from . import _load_version, _version
+        _load_version(pyproject_file)
+        import kodi_addon_builder
+        kodi_addon_builder.__version__ = _version
     pass  # pragma: no cover
 
 
@@ -623,6 +630,11 @@ def release(
 
     click.echo(f"Successfully released version {new_version}")
 
+
+@main.command()
+def version():
+    """Show version."""
+    click.echo(__version__)
 
 main.add_command(bump)
 main.add_command(bump_commit)
