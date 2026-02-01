@@ -861,8 +861,10 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
+    @patch("kodi_addon_builder.cli.update_changelog")
     def test_release_success(
         self,
+        mock_update_changelog,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -899,7 +901,7 @@ class TestReleaseCommand:
         assert "Found addon.xml at: /fake/repo/plugin.video.test/addon.xml" in result.output
         assert "Current version: 1.0.0" in result.output
         assert "New version: 1.1.0" in result.output
-        assert "Updated addon.xml with version 1.1.0" in result.output
+        assert "Updated addon.xml and CHANGELOG.md with version 1.1.0" in result.output
         assert "Committed changes: abc123" in result.output
         assert "Created tag: v1.1.0" in result.output
         assert "Pushed branch: main" in result.output
@@ -913,7 +915,7 @@ class TestReleaseCommand:
         mock_bump_version.assert_called_once_with("1.0.0", "patch")
         mock_tree.write.assert_called_once()
         mock_run_pre_commit.assert_called_once_with(mock_repo)
-        mock_stage_changes.assert_called_once_with(mock_repo, ["plugin.video.test/addon.xml"])
+        mock_stage_changes.assert_called_once_with(mock_repo, ["plugin.video.test/addon.xml", "plugin.video.test/CHANGELOG.md"])
         mock_commit_changes.assert_called_once_with(mock_repo, "Bump version to 1.1.0", False)
         mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", "Release version 1.1.0")
         mock_push_commits.assert_called_once_with(mock_repo, "origin", None)
@@ -961,8 +963,10 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
+    @patch("kodi_addon_builder.cli.update_changelog")
     def test_release_with_news(
         self,
+        mock_update_changelog,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -1016,8 +1020,10 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
+    @patch("kodi_addon_builder.cli.update_changelog")
     def test_release_custom_options(
         self,
+        mock_update_changelog,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -1152,8 +1158,10 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.validate_addon_xml")
     @patch("kodi_addon_builder.cli.find_addon_xml")
     @patch("kodi_addon_builder.cli.bump_version")
+    @patch("kodi_addon_builder.cli.update_changelog")
     def test_release_pre_commit_error(
         self,
+        mock_update_changelog,
         mock_bump_version,
         mock_find_xml,
         mock_validate_xml,

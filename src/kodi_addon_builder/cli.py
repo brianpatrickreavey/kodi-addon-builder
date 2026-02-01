@@ -147,14 +147,38 @@ def update_changelog(changelog_path, version, news):
     today = date.today().isoformat()
     entry = f"## [{version}] - {today}\n- {news}\n\n"
 
+    header = """# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+"""
+
     if changelog_path.exists():
         with open(changelog_path, "r", encoding="utf-8") as f:
             content = f.read()
+        # Find the separator and insert after it
+        sep = "\n---\n"
+        if sep in content:
+            parts = content.split(sep, 1)
+            new_content = parts[0] + sep + entry + parts[1]
+        else:
+            # Fallback: assume content starts with old header, replace and add sep
+            if content.startswith("# Changelog\n\n"):
+                rest = content[len("# Changelog\n\n"):]
+                new_content = header + entry + rest
+            else:
+                new_content = header + entry + content
     else:
-        content = "# Changelog\n\n"
+        new_content = header + entry
 
+    # Ensure the directory exists
+    changelog_path.parent.mkdir(parents=True, exist_ok=True)
     with open(changelog_path, "w", encoding="utf-8") as f:
-        f.write(content + entry)
+        f.write(new_content)
 
 
 @click.command()
@@ -537,7 +561,12 @@ def release(
     # Update XML
     root.set("version", new_version)
     tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
-    click.echo(f"Updated addon.xml with version {new_version}")
+
+    # Update changelog
+    changelog_path = addon_dir / "CHANGELOG.md"
+    update_changelog(changelog_path, new_version, news or "")
+
+    click.echo(f"Updated addon.xml and CHANGELOG.md with version {new_version}")
 
     # Run pre-commit hooks
     if not no_pre_commit:
@@ -547,8 +576,12 @@ def release(
             raise click.ClickException(str(e))  # pragma: no cover
 
     # Stage changes
+    files_to_stage = [
+        str(addon_xml_path.relative_to(repo.working_dir)),
+        str(changelog_path.relative_to(repo.working_dir))
+    ]
     try:
-        stage_changes(repo, [str(addon_xml_path.relative_to(repo.working_dir))])
+        stage_changes(repo, files_to_stage)
     except Exception as e:
         raise click.ClickException(f"Failed to stage changes: {e}")  # pragma: no cover
 
