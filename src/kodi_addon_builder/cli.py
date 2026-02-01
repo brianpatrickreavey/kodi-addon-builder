@@ -24,15 +24,10 @@ from .git_operations import (
 from . import __version__
 
 
-@click.option('--pyproject-file', type=click.Path(exists=True), help='Path to pyproject.toml for version info')
 @click.group()
-def main(pyproject_file):
+@click.version_option(version=__version__)
+def main():
     """CLI tool for Kodi addon version management and packaging."""
-    if pyproject_file:
-        from . import _load_version, _version
-        _load_version(pyproject_file)
-        import kodi_addon_builder
-        kodi_addon_builder.__version__ = _version
     pass  # pragma: no cover
 
 
@@ -83,6 +78,18 @@ def bump_version(current_version, bump_type):
         raise ValueError(f"Invalid bump type: {bump_type}")  # pragma: no cover
 
 
+def update_pyproject_version(pyproject_path, new_version):
+    """Update version in pyproject.toml."""
+    import re
+
+    with open(pyproject_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    # Replace the version line
+    content = re.sub(r'(version\s*=\s*)"[^"]*"', rf'\1"{new_version}"', content)
+    with open(pyproject_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
 @click.command()
 @click.argument("bump_type", type=click.Choice(["major", "minor", "patch"]))
 @click.option(
@@ -90,10 +97,15 @@ def bump_version(current_version, bump_type):
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
     help="Path to the addon directory containing addon.xml",
 )
+@click.option(
+    "--pyproject-file",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to pyproject.toml to also update version in",
+)
 @click.option("--news", help="News/changelog entry for this version")
 @click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
-def bump(bump_type, addon_path, news, non_interactive, dry_run):
+def bump(bump_type, addon_path, pyproject_file, news, non_interactive, dry_run):
     """Bump the version in addon.xml."""
     # Find addon.xml
     if addon_path:
@@ -135,6 +147,8 @@ def bump(bump_type, addon_path, news, non_interactive, dry_run):
     # Dry run
     if dry_run:
         click.echo("Dry run: No changes made")
+        if pyproject_file:
+            click.echo(f"Would update {pyproject_file} with version {new_version}")
         return
 
     # Update XML
@@ -142,6 +156,11 @@ def bump(bump_type, addon_path, news, non_interactive, dry_run):
     tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
 
     click.echo(f"Updated addon.xml with version {new_version}")
+
+    # Update pyproject.toml if provided
+    if pyproject_file:
+        update_pyproject_version(pyproject_file, new_version)
+        click.echo(f"Updated {pyproject_file} with version {new_version}")
 
 
 def is_tree_clean(repo):
@@ -175,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         else:
             # Fallback: assume content starts with old header, replace and add sep
             if content.startswith("# Changelog\n\n"):
-                rest = content[len("# Changelog\n\n"):]
+                rest = content[len("# Changelog\n\n") :]
                 new_content = header + entry + rest
             else:
                 new_content = header + entry + content
@@ -195,6 +214,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
     help="Path to the addon directory containing addon.xml",
 )
+@click.option(
+    "--pyproject-file",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to pyproject.toml to also update version in",
+)
 @click.option("--news", help="News/changelog entry for this version")
 @click.option(
     "--file", "news_file", type=click.Path(exists=True, dir_okay=False), help="File containing news/changelog"
@@ -202,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 @click.option("--editor", is_flag=True, help="Open editor to input news")
 @click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
-def bump_commit(bump_type, addon_path, news, news_file, editor, non_interactive, dry_run):
+def bump_commit(bump_type, addon_path, pyproject_file, news, news_file, editor, non_interactive, dry_run):
     """Bump version, update changelog, and commit changes."""
     # Find addon.xml
     if addon_path:
@@ -267,6 +291,8 @@ def bump_commit(bump_type, addon_path, news, news_file, editor, non_interactive,
     # Dry run
     if dry_run:
         click.echo("Dry run: No changes made")
+        if pyproject_file:
+            click.echo(f"Would update {pyproject_file} with version {new_version}")
         return
 
     # Update XML
@@ -277,7 +303,13 @@ def bump_commit(bump_type, addon_path, news, news_file, editor, non_interactive,
     changelog_path = addon_dir / "CHANGELOG.md"
     update_changelog(changelog_path, new_version, news)
 
+    # Update pyproject.toml if provided
+    if pyproject_file:
+        update_pyproject_version(pyproject_file, new_version)
+
     click.echo(f"Updated addon.xml and CHANGELOG.md with version {new_version}")
+    if pyproject_file:
+        click.echo(f"Updated {pyproject_file} with version {new_version}")
 
     # Stage and commit
     try:
@@ -481,6 +513,11 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
     help="Path to the addon directory containing addon.xml",
 )
+@click.option(
+    "--pyproject-file",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to pyproject.toml to also update version in",
+)
 @click.option("--news", help="News/changelog entry for this version")
 @click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
@@ -496,6 +533,7 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
 def release(
     bump_type,
     addon_path,
+    pyproject_file,
     news,
     non_interactive,
     dry_run,
@@ -550,6 +588,8 @@ def release(
         click.echo(f"Would commit with message: 'Bump version to {new_version}'")
         click.echo(f"Would create tag: v{new_version}")
         click.echo(f"Would push branch and tags to {remote}")
+        if pyproject_file:
+            click.echo(f"Would update {pyproject_file} with version {new_version}")
         return
 
     # Get repo
@@ -573,7 +613,13 @@ def release(
     changelog_path = addon_dir / "CHANGELOG.md"
     update_changelog(changelog_path, new_version, news or "")
 
+    # Update pyproject.toml if provided
+    if pyproject_file:
+        update_pyproject_version(pyproject_file, new_version)
+
     click.echo(f"Updated addon.xml and CHANGELOG.md with version {new_version}")
+    if pyproject_file:
+        click.echo(f"Updated {pyproject_file} with version {new_version}")
 
     # Run pre-commit hooks
     if not no_pre_commit:
@@ -585,8 +631,10 @@ def release(
     # Stage changes
     files_to_stage = [
         str(addon_xml_path.relative_to(repo.working_dir)),
-        str(changelog_path.relative_to(repo.working_dir))
+        str(changelog_path.relative_to(repo.working_dir)),
     ]
+    if pyproject_file:
+        files_to_stage.append(str(Path(pyproject_file).relative_to(repo.working_dir)))
     try:
         stage_changes(repo, files_to_stage)
     except Exception as e:
@@ -630,11 +678,6 @@ def release(
 
     click.echo(f"Successfully released version {new_version}")
 
-
-@main.command()
-def version():
-    """Show version."""
-    click.echo(__version__)
 
 main.add_command(bump)
 main.add_command(bump_commit)

@@ -1,20 +1,8 @@
 """Kodi Addon Builder."""
 
-import tomllib
-from pathlib import Path
+try:
+    from importlib.metadata import version
 
-_version = "unknown"
-
-def _load_version(path=None):
-    global _version
-    pyproject_path = Path(path) if path else Path.cwd() / "pyproject.toml"
-    try:
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-        _version = data["project"]["version"]
-    except (FileNotFoundError, KeyError):
-        _version = "unknown"
-
-_load_version()
-
-__version__ = _version
+    __version__ = version("kodi-addon-builder")
+except Exception:
+    __version__ = "unknown"
