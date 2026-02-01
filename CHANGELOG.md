@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2026-02-01
+- Fix AttributeError for missing __version__ attribute
+
 ## [0.3.0] - 2026-02-01
 - Add changelog functionality to release command
 - Set up uv for dependency management
