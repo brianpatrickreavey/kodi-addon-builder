@@ -14,6 +14,7 @@ from kodi_addon_builder.cli import (
     is_tree_clean,
     update_changelog,
     bump_commit,
+    main,
 )
 
 
@@ -190,6 +191,38 @@ class TestBumpCommand:
             root = tree.getroot()
             assert root.get("version") == "1.0.0"
 
+    def test_bump_with_pyproject_file(self, temp_addon_dir):
+        """Test bump with --pyproject-file option."""
+        # Create a pyproject.toml in the addon dir
+        pyproject_path = temp_addon_dir / "pyproject.toml"
+        pyproject_path.write_text('[project]\nname = "test-addon"\nversion = "1.0.0"\n')
+
+        with patch("pathlib.Path.cwd", return_value=temp_addon_dir):
+            result = self.runner.invoke(bump, ["patch", "--pyproject-file", str(pyproject_path), "--non-interactive"])
+            assert result.exit_code == 0
+            assert "Updated" in result.output and "pyproject.toml" in result.output and "1.0.1" in result.output
+
+            # Check pyproject.toml was updated
+            content = pyproject_path.read_text()
+            assert 'version = "1.0.1"' in content
+
+    def test_bump_dry_run_with_pyproject_file(self, temp_addon_dir):
+        """Test bump dry run with --pyproject-file option."""
+        # Create a pyproject.toml in the addon dir
+        pyproject_path = temp_addon_dir / "pyproject.toml"
+        pyproject_path.write_text('[project]\nname = "test-addon"\nversion = "1.0.0"\n')
+
+        with patch("pathlib.Path.cwd", return_value=temp_addon_dir):
+            result = self.runner.invoke(
+                bump, ["patch", "--pyproject-file", str(pyproject_path), "--dry-run", "--non-interactive"]
+            )
+            assert result.exit_code == 0
+            assert "Would update" in result.output and "pyproject.toml" in result.output and "1.0.1" in result.output
+
+            # Check pyproject.toml was NOT updated
+            content = pyproject_path.read_text()
+            assert 'version = "1.0.0"' in content
+
     def test_bump_with_news(self, temp_addon_dir):
         """Test bump with --news option."""
         news_text = "Added new feature"
@@ -224,6 +257,13 @@ class TestBumpCommand:
             assert "News: News provided" in result.output
             # prompt should not be called
             mock_prompt.assert_not_called()
+
+    def test_version_option(self):
+        """Test --version option."""
+        result = self.runner.invoke(main, ["--version"])
+        assert result.exit_code == 0
+        # The version should be shown, but since it's dynamic, just check it doesn't fail
+        assert len(result.output.strip()) > 0
 
     def test_bump_invalid_bump_type(self):
         """Test bump with invalid bump type (should not happen due to click.Choice)."""
@@ -310,3 +350,22 @@ class TestBumpCommit:
             )
             assert result.exit_code == 1
             assert "News is required" in result.output
+
+
+class TestVersion:
+    """Test version handling."""
+
+    @patch("importlib.metadata.version")
+    def test_version_fallback(self, mock_version):
+        """Test __version__ fallback when importlib.metadata fails."""
+        mock_version.side_effect = ImportError("No module named 'importlib.metadata'")
+        # Re-import to trigger the fallback
+        import sys
+
+        if "kodi_addon_builder" in sys.modules:
+            del sys.modules["kodi_addon_builder"]
+        if "kodi_addon_builder.__init__" in sys.modules:
+            del sys.modules["kodi_addon_builder.__init__"]
+        import kodi_addon_builder
+
+        assert kodi_addon_builder.__version__ == "unknown"

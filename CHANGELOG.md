@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.4] - 2026-02-01
+- Improved test coverage to 91%
+- Added tests for --pyproject-file option in bump and release commands
+- Added test for --version option
+- Added test for __version__ fallback
+
 ## [0.3.3] - 2026-02-01
 - Add --pyproject-file flag to bump, bump_commit, and release commands for updating pyproject.toml alongside addon.xml
 - Fix __version__ to use importlib.metadata for the tool's version

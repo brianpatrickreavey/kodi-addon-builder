@@ -923,6 +923,67 @@ class TestReleaseCommand:
         mock_push_commits.assert_called_once_with(mock_repo, "origin", None)
         mock_push_tags.assert_called_once_with(mock_repo, "origin")
 
+    def test_release_with_pyproject_file(self, tmp_path):
+        """Test successful release with --pyproject-file option."""
+        # Create a real pyproject.toml
+        pyproject_path = tmp_path / "pyproject.toml"
+        pyproject_path.write_text('[project]\nname = "test"\nversion = "1.0.0"\n')
+
+        with patch("kodi_addon_builder.cli.get_repo") as mock_get_repo, patch(
+            "kodi_addon_builder.cli.find_addon_xml"
+        ) as mock_find_xml, patch("kodi_addon_builder.cli.validate_addon_xml") as mock_validate_xml, patch(
+            "kodi_addon_builder.cli.bump_version"
+        ) as mock_bump_version, patch(
+            "kodi_addon_builder.cli.run_pre_commit_hooks"
+        ) as _, patch(
+            "kodi_addon_builder.cli.stage_changes"
+        ) as mock_stage_changes, patch(
+            "kodi_addon_builder.cli.commit_changes"
+        ) as mock_commit_changes, patch(
+            "kodi_addon_builder.cli.create_tag"
+        ) as _, patch(
+            "kodi_addon_builder.cli.push_commits"
+        ) as _, patch(
+            "kodi_addon_builder.cli.push_tags"
+        ) as _, patch(
+            "kodi_addon_builder.cli.get_current_branch"
+        ) as mock_get_branch, patch(
+            "kodi_addon_builder.cli.update_changelog"
+        ) as _:
+            mock_repo = MagicMock()
+            mock_repo.working_dir = str(tmp_path)
+            mock_repo.is_dirty.return_value = False
+            mock_get_repo.return_value = mock_repo
+
+            addon_xml_path = tmp_path / "plugin.video.test" / "addon.xml"
+            mock_find_xml.return_value = addon_xml_path
+
+            # Mock XML validation and parsing
+            mock_tree = MagicMock()
+            mock_root = MagicMock()
+            mock_root.get.side_effect = lambda key: {"version": "1.0.0"}.get(key)
+            mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+            mock_bump_version.return_value = "1.1.0"
+            mock_commit_changes.return_value = "abc123"
+            mock_get_branch.return_value = "main"
+
+            result = self.runner.invoke(
+                release, ["patch", "--pyproject-file", str(pyproject_path), "--non-interactive"]
+            )
+            assert result.exit_code == 0
+            assert "Updated" in result.output and "pyproject.toml" in result.output and "1.1.0" in result.output
+
+            # Verify staging includes pyproject.toml
+            mock_stage_changes.assert_called_once_with(
+                mock_repo,
+                [
+                    "plugin.video.test/addon.xml",
+                    "plugin.video.test/CHANGELOG.md",
+                    str(pyproject_path.relative_to(tmp_path)),
+                ],
+            )
+
     @patch("kodi_addon_builder.cli.get_repo")
     @patch("kodi_addon_builder.cli.find_addon_xml")
     @patch("kodi_addon_builder.cli.validate_addon_xml")
