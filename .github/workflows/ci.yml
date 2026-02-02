@@ -28,9 +28,14 @@ jobs:
 
     - name: Install dependencies
       run: |
+        # Upgrade pip and install uv
         python -m pip install --upgrade pip
         pip install uv
-        uv sync --system --group dev --group ci
+        # Install the package itself
+        pip install -e .
+        # Export and install dev/ci dependencies
+        uv export --group dev --group ci --output-file requirements-dev-ci.txt
+        pip install -r requirements-dev-ci.txt
 
     - name: Run type checking (Pyright)
       run: |
