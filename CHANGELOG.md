@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.5] - 2026-02-01
+- Separated CI dependencies into dedicated `ci` group (anybadge)
+- Updated CI workflow to use uv with system installation
+- Improved dependency organization for better dev vs CI separation
+
 ## [0.3.4] - 2026-02-01
 - Improved test coverage to 91%
 - Added tests for --pyproject-file option in bump and release commands
