@@ -585,7 +585,7 @@ def release(
     if dry_run:
         click.echo("Dry run: No changes made")
         click.echo(f"Would bump version to {new_version}")
-        click.echo(f"Would commit with message: 'Bump version to {new_version}'")
+        click.echo(f"Would commit with message: 'v{new_version}: Version bump'")
         click.echo(f"Would create tag: v{new_version}")
         click.echo(f"Would push branch and tags to {remote}")
         if pyproject_file:
@@ -641,9 +641,12 @@ def release(
         raise click.ClickException(f"Failed to stage changes: {e}")  # pragma: no cover
 
     # Commit
-    commit_message = f"Bump version to {new_version}"
     if news:
-        commit_message += f"\n\n{news}"
+        # Use first line of news for concise commit message
+        first_line = news.split("\n")[0].strip()
+        commit_message = f"v{new_version}: {first_line}"
+    else:
+        commit_message = f"v{new_version}: Version bump"
     try:
         commit_hash = commit_changes(repo, commit_message, allow_empty_commit)
         click.echo(f"Committed changes: {commit_hash}")
@@ -652,9 +655,12 @@ def release(
 
     # Create tag
     tag_name = f"v{new_version}"
-    tag_message = f"Release version {new_version}"
     if news:
-        tag_message += f"\n\n{news}"
+        # Use first line of news for concise tag message
+        first_line = news.split("\n")[0].strip()
+        tag_message = f"v{new_version}: {first_line}"
+    else:
+        tag_message = f"v{new_version}: Version bump"
     try:
         create_tag(repo, tag_name, tag_message)
         click.echo(f"Created tag: {tag_name}")

@@ -918,8 +918,8 @@ class TestReleaseCommand:
         mock_stage_changes.assert_called_once_with(
             mock_repo, ["plugin.video.test/addon.xml", "plugin.video.test/CHANGELOG.md"]
         )
-        mock_commit_changes.assert_called_once_with(mock_repo, "Bump version to 1.1.0", False)
-        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", "Release version 1.1.0")
+        mock_commit_changes.assert_called_once_with(mock_repo, "v1.1.0: Version bump", False)
+        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", "v1.1.0: Version bump")
         mock_push_commits.assert_called_once_with(mock_repo, "origin", None)
         mock_push_tags.assert_called_once_with(mock_repo, "origin")
 
@@ -1008,7 +1008,7 @@ class TestReleaseCommand:
         assert result.exit_code == 0
         assert "Dry run: No changes made" in result.output
         assert "Would bump version to 1.1.0" in result.output
-        assert "Would commit with message: 'Bump version to 1.1.0'" in result.output
+        assert "Would commit with message: 'v1.1.0: Version bump'" in result.output
         assert "Would create tag: v1.1.0" in result.output
         assert "Would push branch and tags to origin" in result.output
 
@@ -1065,11 +1065,11 @@ class TestReleaseCommand:
         assert "News: Fixed a bug" in result.output
 
         # Verify commit message includes news
-        expected_commit_msg = "Bump version to 1.1.0\n\nFixed a bug"
+        expected_commit_msg = "v1.1.0: Fixed a bug"
         mock_commit_changes.assert_called_once_with(mock_repo, expected_commit_msg, False)
 
         # Verify tag message includes news
-        expected_tag_msg = "Release version 1.1.0\n\nFixed a bug"
+        expected_tag_msg = "v1.1.0: Fixed a bug"
         mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", expected_tag_msg)
 
     @patch("kodi_addon_builder.cli.get_repo")
@@ -1134,7 +1134,7 @@ class TestReleaseCommand:
 
         # Verify custom options
         mock_run_pre_commit.assert_not_called()
-        mock_commit_changes.assert_called_once_with(mock_repo, "Bump version to 1.1.0", True)
+        mock_commit_changes.assert_called_once_with(mock_repo, "v1.1.0: Version bump", True)
         mock_push_commits.assert_called_once_with(mock_repo, "upstream", "develop")
         mock_push_tags.assert_called_once_with(mock_repo, "upstream")
 
@@ -1321,7 +1321,7 @@ class TestReleaseCommandIntegration:
                 assert root.get("version") == "1.0.1"
 
                 # Verify git state
-                assert repo.head.commit.message == "Bump version to 1.0.1\n\nTest release"
+                assert repo.head.commit.message == "v1.0.1: Test release"
                 assert "v1.0.1" in [tag.name for tag in repo.tags]
 
             finally:
