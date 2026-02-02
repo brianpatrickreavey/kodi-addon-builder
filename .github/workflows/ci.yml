@@ -34,7 +34,7 @@ jobs:
         # Install the package itself
         pip install -e .
         # Export and install dev/ci dependencies
-        uv export --group dev --group ci --output-file requirements-dev-ci.txt
+        uv export --group dev --group ci --no-emit-project --output-file requirements-dev-ci.txt
         pip install -r requirements-dev-ci.txt
 
     - name: Run type checking (Pyright)
