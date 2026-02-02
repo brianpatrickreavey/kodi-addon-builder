@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.6] - 2026-02-01
 - Updated CI workflow to use uv export for dependency installation
 - Improved CI dependency management with proper system Python installation
+- Fixed Python 3.10 test failures by importing submodules in __init__.py
+- Added --no-emit-project flag to uv export to prevent hash errors
 
 ## [0.3.5] - 2026-02-01
 - Separated CI dependencies into dedicated `ci` group (anybadge)
