@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2026-02-04
+
+### Fixed
+- **CI and pre-commit consistency** - Update CI workflow to use pre-commit hooks instead of manual linting commands
+- **Comprehensive Python file checking** - Ensure all Python files (not just src/ tests/) are linted consistently
+- **Pre-commit configuration** - Exclude .venv/ directory and check all other Python files
+- **Development workflow gap** - Close inconsistency between local development and CI linting behavior
+
+---
+
 ## [0.4.0] - 2026-02-04
 
 ### Added
