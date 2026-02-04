@@ -168,8 +168,10 @@ class TestCommitCommand:
         mock_repo.working_dir = "/custom/repo"
         mock_get_repo.return_value = mock_repo
 
-        with patch("kodi_addon_builder.cli.run_pre_commit_hooks"), patch("kodi_addon_builder.cli.stage_changes"), patch(
-            "kodi_addon_builder.cli.commit_changes", return_value="abc123"
+        with (
+            patch("kodi_addon_builder.cli.run_pre_commit_hooks"),
+            patch("kodi_addon_builder.cli.stage_changes"),
+            patch("kodi_addon_builder.cli.commit_changes", return_value="abc123"),
         ):
             # Create the directory so Click validation passes
             import tempfile
@@ -934,29 +936,21 @@ class TestReleaseCommand:
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text('[project]\nname = "test"\nversion = "1.0.0"\n')
 
-        with patch("kodi_addon_builder.cli.get_repo") as mock_get_repo, patch(
-            "kodi_addon_builder.cli.find_addon_xml"
-        ) as mock_find_xml, patch("kodi_addon_builder.cli.validate_addon_xml") as mock_validate_xml, patch(
-            "kodi_addon_builder.cli.bump_version"
-        ) as mock_bump_version, patch(
-            "kodi_addon_builder.cli.run_pre_commit_hooks"
-        ) as _, patch(
-            "kodi_addon_builder.cli.stage_changes"
-        ) as mock_stage_changes, patch(
-            "kodi_addon_builder.cli.commit_changes"
-        ) as mock_commit_changes, patch(
-            "kodi_addon_builder.cli.create_tag"
-        ) as _, patch(
-            "kodi_addon_builder.cli.push_commits"
-        ) as _, patch(
-            "kodi_addon_builder.cli.push_tags"
-        ) as _, patch(
-            "kodi_addon_builder.cli.get_current_branch"
-        ) as mock_get_branch, patch(
-            "kodi_addon_builder.cli.update_changelog_with_content"
-        ) as _, patch(
-            "kodi_addon_builder.cli.update_addon_news"
-        ) as _:
+        with (
+            patch("kodi_addon_builder.cli.get_repo") as mock_get_repo,
+            patch("kodi_addon_builder.cli.find_addon_xml") as mock_find_xml,
+            patch("kodi_addon_builder.cli.validate_addon_xml") as mock_validate_xml,
+            patch("kodi_addon_builder.cli.bump_version") as mock_bump_version,
+            patch("kodi_addon_builder.cli.run_pre_commit_hooks") as _,
+            patch("kodi_addon_builder.cli.stage_changes") as mock_stage_changes,
+            patch("kodi_addon_builder.cli.commit_changes") as mock_commit_changes,
+            patch("kodi_addon_builder.cli.create_tag") as _,
+            patch("kodi_addon_builder.cli.push_commits") as _,
+            patch("kodi_addon_builder.cli.push_tags") as _,
+            patch("kodi_addon_builder.cli.get_current_branch") as mock_get_branch,
+            patch("kodi_addon_builder.cli.update_changelog_with_content") as _,
+            patch("kodi_addon_builder.cli.update_addon_news") as _,
+        ):
             mock_repo = MagicMock()
             mock_repo.working_dir = str(tmp_path)
             mock_repo.is_dirty.return_value = False

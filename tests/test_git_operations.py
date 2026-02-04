@@ -49,9 +49,10 @@ class TestGetRepo:
 
     def test_get_repo_default_cwd(self):
         """Test getting repo with default cwd."""
-        with patch("pathlib.Path.cwd", return_value=Path("/fake/cwd")), patch(
-            "kodi_addon_builder.git_operations.Repo"
-        ) as mock_repo_class:
+        with (
+            patch("pathlib.Path.cwd", return_value=Path("/fake/cwd")),
+            patch("kodi_addon_builder.git_operations.Repo") as mock_repo_class,
+        ):
             mock_repo = MagicMock()
             mock_repo_class.return_value = mock_repo
 
