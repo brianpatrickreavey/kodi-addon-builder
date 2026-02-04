@@ -72,6 +72,11 @@ jobs:
       run: |
         echo "Skipping Upload Artifacts job on ACT"
         exit 0
+    - name: Checkout code
+      if: ${{ env.ACT != 'true' }}
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for pushing to badges branch
     - name: Download coverage artifacts
       if: ${{ env.ACT != 'true' }}
       uses: actions/download-artifact@v4
