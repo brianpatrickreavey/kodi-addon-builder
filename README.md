@@ -10,8 +10,10 @@ A CLI tool to automate version management, git operations, and packaging for Kod
 ## Features
 
 - **Version Bumping**: Automatically update `addon.xml` versions (major/minor/patch).
+- **News Formatting**: Comprehensive news formatting system supporting Keep a Changelog markdown input with multiple output formats (commit messages, changelogs, addon.xml news sections).
 - **Git Operations**: Commit, tag, and push changes with custom messages.
-- **Release Automation**: Combine all operations into a single `release` command.
+- **Release Automation**: Combine all operations into a single `release` command with news integration.
+- **Addon.xml Updates**: Automatically update addon.xml news sections with Kodi-compatible bracketed format.
 - **Zip Generation**: Create addon zips using `git archive` for clean, reproducible builds.
 - **Pre-commit Integration**: Run hooks for code quality checks.
 - **CI/CD Ready**: Example GitHub Actions workflow for automated releases.
@@ -39,51 +41,56 @@ pip install -e .
    cd /path/to/your/kodi/addon
    ```
 
-2. **Bump the version and commit**:
+2. **Create a release** (bumps version, updates news, commits, tags, pushes):
    ```bash
-   kodi-addon-builder bump-commit minor --news "Added new feature X"
+   kodi-addon-builder release patch \
+     --summary "Fixed critical bug in playback" \
+     --news "### Fixed\n- Resolved crash when loading videos\n- Fixed missing subtitles"
    ```
 
-3. **Or bump separately**:
-   ```bash
-   kodi-addon-builder bump minor
-   ```
-
-4. **Commit changes**:
-   ```bash
-   kodi-addon-builder commit "Bump version to 1.1.0"
-   ```
-
-5. **Create a release** (bumps, commits, tags, pushes):
-   ```bash
-   kodi-addon-builder release patch --news "Fixed bug X"
-   ```
-
-6. **Build a zip**:
+3. **Build a zip**:
    ```bash
    kodi-addon-builder zip --output my-addon.zip
    ```
 
 ## Commands
 
-### `bump-commit <bump_type> [options]`
+### `release <bump_type> [options]`
 
-Bump version, update changelog, and commit changes in one command.
+**Complete release workflow**: bump version, update addon.xml news, update changelog, commit, tag, and push.
 
+**Required parameters:**
 - `<bump_type>`: `major`, `minor`, `patch`
+- `--summary <text>`: Short summary for commit messages and changelog headers
+- `--news <text>`: Detailed changes in Keep a Changelog markdown format
+
+**Optional parameters:**
+- `--addon-news <text>`: Custom summary for addon.xml news (if auto-generated exceeds 1500 chars)
 - `--addon-path <path>`: Path to addon directory (auto-detected if not specified)
-- `--news <text>`: News/changelog entry for this version
-- `--file <file>`: File containing news/changelog
-- `--editor`: Open editor to input news
-- `--non-interactive`: Run in non-interactive mode
-- `--dry-run`: Show what would be done without making changes
+- `--pyproject-file <file>`: Path to pyproject.toml for version updates
+- `--dry-run`: Preview all actions without making changes
+- `--non-interactive`: Skip interactive prompts
 
-### `bump <bump_type> [options]`
+**News Format Examples:**
+```bash
+# Basic release
+kodi-addon-builder release patch \
+  --summary "Fixed video playback issues" \
+  --news "### Fixed\n- Resolved crash on startup\n- Fixed missing audio"
 
-Stage and commit changes.
+# Advanced release with custom addon news
+kodi-addon-builder release minor \
+  --summary "Added new streaming features" \
+  --news "### Added\n- Support for HLS streams\n- New quality settings\n### Fixed\n- Memory leak in player" \
+  --addon-news "New streaming features and bug fixes"
+```
+
+### `commit <message> [options]`
+
+Create a git commit.
 
 - `<message>`: Commit message
-- `--repo-path <path>`: Git repo path
+- `--repo-path <path>`: Git repository path
 - `--allow-empty`: Allow empty commits
 
 ### `tag <tag_name> [options]`
@@ -91,41 +98,81 @@ Stage and commit changes.
 Create and push a git tag.
 
 - `<tag_name>`: Tag name (e.g., `v1.0.0`)
-- `--message <text>`: Tag annotation
-- `--repo-path <path>`: Git repo path
-- `--remote <name>`: Remote to push to
+- `--message <text>`: Tag annotation message
+- `--repo-path <path>`: Git repository path
+- `--remote <name>`: Remote to push to (default: origin)
 
 ### `push [options]`
 
 Push commits and tags.
 
-- `--repo-path <path>`: Git repo path
-- `--remote <name>`: Remote name
-- `--branch <name>`: Branch to push
+- `--repo-path <path>`: Git repository path
+- `--remote <name>`: Remote name (default: origin)
+- `--branch <name>`: Branch to push (default: current branch)
 
 ### `zip [options]`
 
-Generate a zip archive of the addon.
+Generate a zip archive of the addon using `git archive`.
 
-- `--output <file>`: Output zip file path
-- `--addon-path <path>`: Addon directory
-- `--full-repo`: Zip entire repo instead of addon directory
-- `--commit <sha>`: Specific commit to archive
-- `--exclude <patterns>`: Files/patterns to exclude
+- `--output <file>`: Output zip file path (default: auto-generated)
+- `--addon-path <path>`: Addon directory (auto-detected if not specified)
+- `--full-repo`: Archive entire repository instead of addon directory
+- `--commit <sha>`: Specific commit to archive (default: HEAD)
+- `--exclude <patterns>`: Files/patterns to exclude from archive
 
-### `release <bump_type> [options]`
+## News Formatting
 
-Full release workflow: bump version, commit, tag, push.
+The news formatting system supports [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) markdown format for input and generates multiple output formats:
 
-- `<bump_type>`: Version bump type
-- `--addon-path <path>`: Addon directory
-- `--news <text>`: Release notes
-- `--non-interactive`: Skip prompts
-- `--dry-run`: Preview actions
-- `--repo-path <path>`: Git repo path
-- `--remote <name>`: Remote for push
-- `--branch <name>`: Branch to push
-- `--no-pre-commit`: Skip pre-commit hooks
+### Input Format (Keep a Changelog Markdown)
+
+```markdown
+### Added
+- New feature description
+- Another new feature
+
+### Changed
+- Modified existing functionality
+
+### Fixed
+- Bug fix description
+
+### Removed
+- Deprecated feature removal
+```
+
+### Output Formats
+
+1. **Changelog (CHANGELOG.md)**: Full formatted changelog with version headers
+2. **Addon.xml News**: Condensed summary for Kodi addon.xml (max 1500 characters)
+3. **Git Commit Messages**: Short summary for commit messages
+
+### Examples
+
+**Simple patch release:**
+```bash
+kodi-addon-builder release patch \
+  --summary "Fixed video playback issues" \
+  --news "### Fixed\n- Resolved crash on startup\n- Fixed missing audio"
+```
+
+**Feature release with multiple changes:**
+```bash
+kodi-addon-builder release minor \
+  --summary "Added new streaming features" \
+  --news "### Added\n- Support for HLS streams\n- New quality settings\n### Fixed\n- Memory leak in player\n- Improved error handling"
+```
+
+**Breaking changes:**
+```bash
+kodi-addon-builder release major \
+  --summary "API overhaul" \
+  --news "### Changed\n- Complete API redesign\n- Breaking changes for custom integrations\n### Removed\n- Deprecated legacy methods"
+```
+
+### Auto-generated Addon.xml News
+
+If `--addon-news` is not provided, the system automatically generates a summary from your news input. The summary is truncated to fit Kodi's 1500 character limit for addon.xml news sections.
 
 ## Workflows
 
@@ -133,7 +180,7 @@ Full release workflow: bump version, commit, tag, push.
 
 For manual releases:
 1. Develop and commit changes.
-2. Run `kodi-addon-builder release <type>` to bump, commit, tag, and push.
+2. Run `kodi-addon-builder release <type> --summary "Brief description" --news "### Added\n- New features\n### Fixed\n- Bug fixes"` to bump version, update news, commit, tag, and push.
 3. The tag triggers your CI/CD for zip building and releases.
 
 ### CI/CD with GitHub Actions
@@ -181,7 +228,7 @@ A: Fix the issues (e.g., run `make format` and `make lint`), then commit again.
 2. Set up pre-commit hooks: `pre-commit install`
 3. Create a feature branch.
 4. Add tests for new features.
-5. Run `make test` for testing with coverage, `make lint` for linting, `make format` for formatting.
+5. Run `make unittest-with-coverage` for testing with coverage, `make lint` for linting, `make format` for formatting.
 6. Submit a pull request.
 
 ## License

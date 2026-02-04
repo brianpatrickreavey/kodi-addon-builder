@@ -477,12 +477,12 @@ v1.2.3 (2023-01-02)
 - Phase 1: 2-3 days (core formatting system) - **COMPLETED**
 - Phase 2: 1-2 days (addon.xml integration) - **COMPLETED**
 - Phase 3: 2-3 days (testing & integration) - **UNIT TESTS COMPLETED, INTEGRATION PENDING**
-- Phase 4: 1 day (documentation) - **NOT STARTED**
-- **Phase 5: 1-2 days (CLI simplification & cleanup)** - **PARTIALLY COMPLETED (bump commands removed, release command updated)**
+- Phase 4: 1 day (documentation) - **COMPLETED**
+- **Phase 5: 1-2 days (CLI simplification & cleanup)** - **COMPLETED**
 - **Phase 6: 1-2 days (integration testing setup with dummy addon)** - **NOT STARTED**
 
 **Total: ~1-2 weeks** for complete implementation and testing.
-**Progress: ~70% complete** - Core system, testing, and CLI cleanup done, documentation and integration testing remaining.
+**Progress: ~85% complete** - Core system, testing, CLI cleanup, and documentation done, integration testing remaining.
 
 ## Integration Testing Setup
 

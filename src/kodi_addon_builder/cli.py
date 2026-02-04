@@ -288,92 +288,6 @@ def update_addon_news(addon_xml_path, news_content):
 
 
 @click.command()
-@click.argument("bump_type", type=click.Choice(["major", "minor", "patch"]))
-@click.option(
-    "--addon-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
-    help="Path to the addon directory containing addon.xml",
-)
-@click.option(
-    "--pyproject-file",
-    type=click.Path(exists=True, dir_okay=False),
-    help="Path to pyproject.toml to also update version in",
-)
-@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
-@click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
-@click.option(
-    "--repo-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
-    help="Path to the git repository",
-)
-@click.option("--remote", default="origin", help="Remote name (default: origin)")
-@click.option("--branch", "-b", help="Branch to push (default: current branch)")
-@click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
-@click.option("--allow-empty-commit", is_flag=True, help="Allow empty commits")
-def bump(
-    bump_type,
-    addon_path,
-    pyproject_file,
-    non_interactive,
-    dry_run,
-    repo_path,
-    remote,
-    branch,
-    no_pre_commit,
-    allow_empty_commit,
-):
-    """Bump version in addon.xml and optionally pyproject.toml."""
-    # Find addon.xml
-    if addon_path:
-        addon_dir = Path(addon_path)
-        addon_xml_path = addon_dir / "addon.xml"
-        if not addon_xml_path.exists():
-            raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
-    else:
-        addon_xml_path = find_addon_xml()
-        if not addon_xml_path:
-            raise click.ClickException("Could not find addon.xml in current directory or subdirectories")
-        addon_dir = addon_xml_path.parent
-
-    click.echo(f"Found addon.xml at: {addon_xml_path}")
-
-    # Validate and parse
-    try:
-        tree, root, current_version = validate_addon_xml(addon_xml_path)
-    except ValueError as e:
-        raise click.ClickException(f"Invalid addon.xml: {e}")
-
-    click.echo(f"Current version: {current_version}")
-
-    # Bump version
-    try:
-        new_version = bump_version(current_version, bump_type)
-    except ValueError as e:
-        raise click.ClickException(f"Failed to bump version: {e}")
-
-    click.echo(f"New version: {new_version}")
-
-    # Dry run
-    if dry_run:
-        click.echo("Dry run - would perform the following actions:")
-        click.echo(f"  Update addon.xml version: {current_version} -> {new_version}")
-        if pyproject_file:
-            click.echo(f"  Update {pyproject_file} with version {new_version}")
-        return
-
-    # Update addon.xml
-    update_addon_xml(addon_xml_path, new_version)
-
-    # Update pyproject.toml if provided
-    if pyproject_file:
-        update_pyproject_version(pyproject_file, new_version)
-
-    click.echo(f"Updated addon.xml with version {new_version}")
-    if pyproject_file:
-        click.echo(f"Updated {pyproject_file} with version {new_version}")
-
-
-@click.command()
 @click.option("--message", "-m", required=True, help="Commit message")
 @click.option("--files", multiple=True, help="Specific files to stage (default: all changes)")
 @click.option("--allow-empty", is_flag=True, help="Allow empty commits")
@@ -574,17 +488,7 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
 @click.option("--summary", required=True, help="Short summary for commit message and changelog header")
 @click.option("--news", required=True, help="Detailed news in Keep a Changelog markdown format")
 @click.option("--addon-news", help="Custom summary for addon.xml news (used when auto-generated exceeds 1500 chars)")
-@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
-@click.option(
-    "--repo-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
-    help="Path to the git repository",
-)
-@click.option("--remote", default="origin", help="Remote name (default: origin)")
-@click.option("--branch", "-b", help="Branch to push (default: current branch)")
-@click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
-@click.option("--allow-empty-commit", is_flag=True, help="Allow empty commits")
 def release(
     bump_type,
     addon_path,
@@ -592,13 +496,7 @@ def release(
     summary,
     news,
     addon_news,
-    non_interactive,
     dry_run,
-    repo_path,
-    remote,
-    branch,
-    no_pre_commit,
-    allow_empty_commit,
 ):
     """Bump version, commit, tag, and push in one command."""
     # Find addon.xml
@@ -652,7 +550,7 @@ def release(
         return
 
     # Get repo for git operations
-    repo = get_repo(Path(repo_path) if repo_path else None)
+    repo = get_repo(None)  # Auto-detect from current directory
 
     # Update addon.xml version
     root.set("version", new_version)
@@ -675,12 +573,11 @@ def release(
     if pyproject_file:
         click.echo(f"Updated {pyproject_file} with version {new_version}")
 
-    # Run pre-commit hooks
-    if not no_pre_commit:
-        try:
-            run_pre_commit_hooks(repo)
-        except ValueError as e:
-            raise click.ClickException(str(e))  # pragma: no cover
+    # Run pre-commit hooks (always for release workflow)
+    try:
+        run_pre_commit_hooks(repo)
+    except ValueError as e:
+        raise click.ClickException(str(e))  # pragma: no cover
 
     # Stage changes
     repo_path = Path(repo.working_dir)
@@ -698,7 +595,7 @@ def release(
     # Commit
     commit_message = news_formatter.format_for_commit()
     try:
-        commit_hash = commit_changes(repo, commit_message, allow_empty_commit)
+        commit_hash = commit_changes(repo, commit_message, False)  # No empty commits for release
         click.echo(f"Committed changes: {commit_hash}")
     except ValueError as e:
         raise click.ClickException(str(e))  # pragma: no cover
@@ -714,15 +611,15 @@ def release(
 
     # Push commits
     try:
-        push_commits(repo, remote, branch)
-        current_branch = branch or get_current_branch(repo)
+        push_commits(repo, "origin", None)  # Use default remote and current branch
+        current_branch = get_current_branch(repo)
         click.echo(f"Pushed branch: {current_branch}")
     except ValueError as e:
         raise click.ClickException(str(e))  # pragma: no cover
 
     # Push tags
     try:
-        push_tags(repo, remote)
+        push_tags(repo, "origin")  # Use default remote
         click.echo("Pushed tags")
     except ValueError as e:
         raise click.ClickException(str(e))  # pragma: no cover

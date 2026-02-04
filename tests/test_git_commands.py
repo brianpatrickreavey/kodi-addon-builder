@@ -900,7 +900,7 @@ class TestReleaseCommand:
         mock_get_branch.return_value = "main"
 
         result = self.runner.invoke(
-            release, ["patch", "--summary", "Test release", "--news", "### Fixed\n- Fixed a bug", "--non-interactive"]
+            release, ["patch", "--summary", "Test release", "--news", "### Fixed\n- Fixed a bug"]
         )
         assert result.exit_code == 0
         assert "Found addon.xml at: /fake/repo/plugin.video.test/addon.xml" in result.output
@@ -985,7 +985,6 @@ class TestReleaseCommand:
                     "### Fixed\n- Fixed a bug",
                     "--pyproject-file",
                     str(pyproject_path),
-                    "--non-interactive",
                 ],
             )
             assert result.exit_code == 0
@@ -1030,7 +1029,6 @@ class TestReleaseCommand:
                 "--news",
                 "### Fixed\n- Fixed a bug",
                 "--dry-run",
-                "--non-interactive",
             ],
         )
         assert result.exit_code == 0
@@ -1092,9 +1090,7 @@ class TestReleaseCommand:
         mock_commit_changes.return_value = "abc123"
         mock_get_branch.return_value = "main"
 
-        result = self.runner.invoke(
-            release, ["patch", "--summary", "Bug fixes", "--news", "### Fixed\n- Fixed a bug", "--non-interactive"]
-        )
+        result = self.runner.invoke(release, ["patch", "--summary", "Bug fixes", "--news", "### Fixed\n- Fixed a bug"])
         assert result.exit_code == 0
         assert "Summary: Bug fixes" in result.output
 
@@ -1104,78 +1100,6 @@ class TestReleaseCommand:
 
         # Verify tag message matches commit message
         mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", expected_commit_msg)
-
-    @patch("kodi_addon_builder.cli.get_repo")
-    @patch("kodi_addon_builder.cli.find_addon_xml")
-    @patch("kodi_addon_builder.cli.validate_addon_xml")
-    @patch("kodi_addon_builder.cli.bump_version")
-    @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
-    @patch("kodi_addon_builder.cli.stage_changes")
-    @patch("kodi_addon_builder.cli.commit_changes")
-    @patch("kodi_addon_builder.cli.create_tag")
-    @patch("kodi_addon_builder.cli.push_commits")
-    @patch("kodi_addon_builder.cli.push_tags")
-    @patch("kodi_addon_builder.cli.get_current_branch")
-    @patch("kodi_addon_builder.cli.update_changelog_with_content")
-    @patch("kodi_addon_builder.cli.update_addon_news")
-    def test_release_custom_options(
-        self,
-        mock_update_addon_news,
-        mock_update_changelog_with_content,
-        mock_get_branch,
-        mock_push_tags,
-        mock_push_commits,
-        mock_create_tag,
-        mock_commit_changes,
-        mock_stage_changes,
-        mock_run_pre_commit,
-        mock_bump_version,
-        mock_validate_xml,
-        mock_find_xml,
-        mock_get_repo,
-    ):
-        """Test release with custom remote, branch, and options."""
-        mock_repo = MagicMock()
-        mock_repo.working_dir = "/fake/repo"
-        mock_repo.is_dirty.return_value = False
-        mock_get_repo.return_value = mock_repo
-
-        addon_xml_path = Path("/fake/repo/plugin.video.test/addon.xml")
-        mock_find_xml.return_value = addon_xml_path
-
-        mock_tree = MagicMock()
-        mock_root = MagicMock()
-        mock_root.get.return_value = "1.0.0"
-        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
-
-        mock_bump_version.return_value = "1.1.0"
-        mock_commit_changes.return_value = "abc123"
-        mock_get_branch.return_value = "develop"
-
-        result = self.runner.invoke(
-            release,
-            [
-                "patch",
-                "--summary",
-                "Test release",
-                "--news",
-                "### Fixed\n- Fixed a bug",
-                "--remote",
-                "upstream",
-                "--branch",
-                "develop",
-                "--no-pre-commit",
-                "--allow-empty-commit",
-                "--non-interactive",
-            ],
-        )
-        assert result.exit_code == 0
-
-        # Verify custom options
-        mock_run_pre_commit.assert_not_called()
-        mock_commit_changes.assert_called_once_with(mock_repo, "release: 1.1.0 - Test release", True)
-        mock_push_commits.assert_called_once_with(mock_repo, "upstream", "develop")
-        mock_push_tags.assert_called_once_with(mock_repo, "upstream")
 
     @patch("kodi_addon_builder.cli.find_addon_xml")
     def test_release_no_addon_xml(self, mock_find_xml):
@@ -1317,8 +1241,6 @@ class TestReleaseCommand:
                     addon_rel_path,
                     "--pyproject-file",
                     pyproject_rel_path,
-                    "--non-interactive",
-                    "--no-pre-commit",
                 ],
             )
         finally:
@@ -1349,9 +1271,7 @@ class TestReleaseCommand:
         mock_bump_version.return_value = "1.1.0"
         mock_get_repo.side_effect = ValueError("No git repository found")
 
-        result = self.runner.invoke(
-            release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug", "--non-interactive"]
-        )
+        result = self.runner.invoke(release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug"])
         assert result.exit_code == 1
 
     @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
@@ -1381,9 +1301,7 @@ class TestReleaseCommand:
         mock_get_repo.return_value = mock_repo
         mock_run_pre_commit.side_effect = ValueError("Pre-commit hooks failed")
 
-        result = self.runner.invoke(
-            release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug", "--non-interactive"]
-        )
+        result = self.runner.invoke(release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug"])
         assert result.exit_code == 1
         assert "Pre-commit hooks failed" in result.output
 
@@ -1449,7 +1367,6 @@ class TestReleaseCommandIntegration:
                         "--news",
                         "### Fixed\n- Test fix",
                         "--dry-run",
-                        "--non-interactive",
                     ],
                 )
                 assert result.exit_code == 0
