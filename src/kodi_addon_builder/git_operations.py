@@ -149,3 +149,8 @@ def get_addon_relative_path(repo: Repo, addon_xml_path: Path) -> str:
     """Get the relative path of the addon directory from repo root."""
     repo_root = Path(repo.working_dir)
     return str(addon_xml_path.parent.relative_to(repo_root))
+
+
+def is_tree_clean(repo: Repo) -> bool:
+    """Check if the git working tree is clean."""
+    return not repo.git.status(porcelain=True).strip()

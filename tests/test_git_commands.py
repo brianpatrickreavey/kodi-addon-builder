@@ -861,10 +861,14 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
-    @patch("kodi_addon_builder.cli.update_changelog")
+    @patch("kodi_addon_builder.cli.update_changelog_with_content")
+    @patch("kodi_addon_builder.cli.update_addon_news")
+    @patch("kodi_addon_builder.cli.update_addon_xml")
     def test_release_success(
         self,
-        mock_update_changelog,
+        mock_update_addon_xml,
+        mock_update_addon_news,
+        mock_update_changelog_with_content,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -896,7 +900,9 @@ class TestReleaseCommand:
         mock_commit_changes.return_value = "abc123"
         mock_get_branch.return_value = "main"
 
-        result = self.runner.invoke(release, ["patch", "--non-interactive"])
+        result = self.runner.invoke(
+            release, ["patch", "--summary", "Test release", "--news", "### Fixed\n- Fixed a bug", "--non-interactive"]
+        )
         assert result.exit_code == 0
         assert "Found addon.xml at: /fake/repo/plugin.video.test/addon.xml" in result.output
         assert "Current version: 1.0.0" in result.output
@@ -948,7 +954,9 @@ class TestReleaseCommand:
         ) as _, patch(
             "kodi_addon_builder.cli.get_current_branch"
         ) as mock_get_branch, patch(
-            "kodi_addon_builder.cli.update_changelog"
+            "kodi_addon_builder.cli.update_changelog_with_content"
+        ) as _, patch(
+            "kodi_addon_builder.cli.update_addon_news"
         ) as _:
             mock_repo = MagicMock()
             mock_repo.working_dir = str(tmp_path)
@@ -969,7 +977,17 @@ class TestReleaseCommand:
             mock_get_branch.return_value = "main"
 
             result = self.runner.invoke(
-                release, ["patch", "--pyproject-file", str(pyproject_path), "--non-interactive"]
+                release,
+                [
+                    "patch",
+                    "--summary",
+                    "Test release",
+                    "--news",
+                    "### Fixed\n- Fixed a bug",
+                    "--pyproject-file",
+                    str(pyproject_path),
+                    "--non-interactive",
+                ],
             )
             assert result.exit_code == 0
             assert "Updated" in result.output and "pyproject.toml" in result.output and "1.1.0" in result.output
@@ -1004,11 +1022,22 @@ class TestReleaseCommand:
 
         mock_bump_version.return_value = "1.1.0"
 
-        result = self.runner.invoke(release, ["patch", "--dry-run", "--non-interactive"])
+        result = self.runner.invoke(
+            release,
+            [
+                "patch",
+                "--summary",
+                "Test release",
+                "--news",
+                "### Fixed\n- Fixed a bug",
+                "--dry-run",
+                "--non-interactive",
+            ],
+        )
         assert result.exit_code == 0
         assert "Dry run: No changes made" in result.output
         assert "Would bump version to 1.1.0" in result.output
-        assert "Would commit with message: 'v1.1.0: Version bump'" in result.output
+        assert "Would commit with message: 'release: 1.1.0 - Test release'" in result.output
         assert "Would create tag: v1.1.0" in result.output
         assert "Would push branch and tags to origin" in result.output
 
@@ -1026,10 +1055,14 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
-    @patch("kodi_addon_builder.cli.update_changelog")
+    @patch("kodi_addon_builder.cli.update_changelog_with_content")
+    @patch("kodi_addon_builder.cli.update_addon_news")
+    @patch("kodi_addon_builder.cli.update_addon_xml")
     def test_release_with_news(
         self,
-        mock_update_changelog,
+        mock_update_addon_xml,
+        mock_update_addon_news,
+        mock_update_changelog_with_content,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -1060,16 +1093,20 @@ class TestReleaseCommand:
         mock_commit_changes.return_value = "abc123"
         mock_get_branch.return_value = "main"
 
-        result = self.runner.invoke(release, ["patch", "--news", "Fixed a bug", "--non-interactive"])
+        result = self.runner.invoke(
+            release, ["patch", "--summary", "Bug fixes", "--news", "### Fixed\n- Fixed a bug", "--non-interactive"]
+        )
         assert result.exit_code == 0
-        assert "News: Fixed a bug" in result.output
+        assert "Summary: Bug fixes" in result.output
 
-        # Verify commit message includes news
-        expected_commit_msg = "v1.1.0: Fixed a bug"
+        # Verify commit message uses NewsFormatter
+        expected_commit_msg = "release: 1.1.0 - Bug fixes"
         mock_commit_changes.assert_called_once_with(mock_repo, expected_commit_msg, False)
 
         # Verify tag message includes news
-        expected_tag_msg = "v1.1.0: Fixed a bug"
+        expected_tag_msg = (
+            "# Release Notes - 1.1.0\n\n## [1.1.0] - 2026-02-04 - Bug fixes\n\n### Fixed\n- Fixed a bug\n"
+        )
         mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", expected_tag_msg)
 
     @patch("kodi_addon_builder.cli.get_repo")
@@ -1083,10 +1120,12 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
-    @patch("kodi_addon_builder.cli.update_changelog")
+    @patch("kodi_addon_builder.cli.update_changelog_with_content")
+    @patch("kodi_addon_builder.cli.update_addon_news")
     def test_release_custom_options(
         self,
-        mock_update_changelog,
+        mock_update_addon_news,
+        mock_update_changelog_with_content,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -1121,6 +1160,10 @@ class TestReleaseCommand:
             release,
             [
                 "patch",
+                "--summary",
+                "Test release",
+                "--news",
+                "### Fixed\n- Fixed a bug",
                 "--remote",
                 "upstream",
                 "--branch",
@@ -1134,7 +1177,7 @@ class TestReleaseCommand:
 
         # Verify custom options
         mock_run_pre_commit.assert_not_called()
-        mock_commit_changes.assert_called_once_with(mock_repo, "v1.1.0: Version bump", True)
+        mock_commit_changes.assert_called_once_with(mock_repo, "release: 1.1.0 - Test release", True)
         mock_push_commits.assert_called_once_with(mock_repo, "upstream", "develop")
         mock_push_tags.assert_called_once_with(mock_repo, "upstream")
 
@@ -1143,7 +1186,7 @@ class TestReleaseCommand:
         """Test release with no addon.xml found."""
         mock_find_xml.return_value = None
 
-        result = self.runner.invoke(release, ["patch"])
+        result = self.runner.invoke(release, ["patch", "--summary", "Test", "--news", "### Fixed\n- Bug"])
         assert result.exit_code == 1
         assert "Could not find addon.xml" in result.output
 
@@ -1160,7 +1203,7 @@ class TestReleaseCommand:
 
         mock_validate_xml.side_effect = ValueError("Invalid XML")
 
-        result = self.runner.invoke(release, ["patch"])
+        result = self.runner.invoke(release, ["patch", "--summary", "Test", "--news", "### Fixed\n- Bug"])
         assert result.exit_code == 1
         assert "Invalid addon.xml: Invalid XML" in result.output
 
@@ -1197,7 +1240,9 @@ class TestReleaseCommand:
         fake_dir = tmp_path / "fake_addon"
         fake_dir.mkdir()
 
-        result = self.runner.invoke(release, ["major", "--addon-path", str(fake_dir)])
+        result = self.runner.invoke(
+            release, ["major", "--addon-path", str(fake_dir), "--summary", "Test", "--news", "### Fixed\n- Bug"]
+        )
         assert result.exit_code == 1
         assert f"addon.xml not found at {fake_dir}/addon.xml" in result.output
 
@@ -1212,8 +1257,12 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.push_commits")
     @patch("kodi_addon_builder.cli.push_tags")
     @patch("kodi_addon_builder.cli.get_current_branch")
+    @patch("kodi_addon_builder.cli.update_changelog_with_content")
+    @patch("kodi_addon_builder.cli.update_addon_news")
     def test_release_with_relative_paths(
         self,
+        mock_update_addon_news,
+        mock_update_changelog_with_content,
         mock_get_branch,
         mock_push_tags,
         mock_push_commits,
@@ -1264,6 +1313,10 @@ class TestReleaseCommand:
                 release,
                 [
                     "patch",
+                    "--summary",
+                    "Test release",
+                    "--news",
+                    "### Fixed\n- Fixed a bug",
                     "--addon-path",
                     addon_rel_path,
                     "--pyproject-file",
@@ -1285,6 +1338,7 @@ class TestReleaseCommand:
         expected_files = [
             f"{addon_rel_path}/addon.xml",
             f"{addon_rel_path}/CHANGELOG.md",
+            f"{addon_rel_path}/RELEASE_NOTES.md",
             pyproject_rel_path,
         ]
         assert staged_files == expected_files
@@ -1300,7 +1354,9 @@ class TestReleaseCommand:
         mock_bump_version.return_value = "1.1.0"
         mock_get_repo.side_effect = ValueError("No git repository found")
 
-        result = self.runner.invoke(release, ["major", "--non-interactive"])
+        result = self.runner.invoke(
+            release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug", "--non-interactive"]
+        )
         assert result.exit_code == 1
         assert "No git repository found" in result.output
 
@@ -1309,10 +1365,12 @@ class TestReleaseCommand:
     @patch("kodi_addon_builder.cli.validate_addon_xml")
     @patch("kodi_addon_builder.cli.find_addon_xml")
     @patch("kodi_addon_builder.cli.bump_version")
-    @patch("kodi_addon_builder.cli.update_changelog")
+    @patch("kodi_addon_builder.cli.update_changelog_with_content")
+    @patch("kodi_addon_builder.cli.update_addon_news")
     def test_release_pre_commit_error(
         self,
-        mock_update_changelog,
+        mock_update_addon_news,
+        mock_update_changelog_with_content,
         mock_bump_version,
         mock_find_xml,
         mock_validate_xml,
@@ -1329,7 +1387,9 @@ class TestReleaseCommand:
         mock_get_repo.return_value = mock_repo
         mock_run_pre_commit.side_effect = ValueError("Pre-commit hooks failed")
 
-        result = self.runner.invoke(release, ["major", "--non-interactive"])
+        result = self.runner.invoke(
+            release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug", "--non-interactive"]
+        )
         assert result.exit_code == 1
         assert "Pre-commit hooks failed" in result.output
 
@@ -1386,7 +1446,18 @@ class TestReleaseCommandIntegration:
 
             try:
                 # Run release in dry-run mode first
-                result = self.runner.invoke(release, ["patch", "--dry-run", "--non-interactive"])
+                result = self.runner.invoke(
+                    release,
+                    [
+                        "patch",
+                        "--summary",
+                        "Test release",
+                        "--news",
+                        "### Fixed\n- Test fix",
+                        "--dry-run",
+                        "--non-interactive",
+                    ],
+                )
                 assert result.exit_code == 0
                 assert "Dry run: No changes made" in result.output
                 assert "Would bump version to 1.0.1" in result.output
@@ -1397,7 +1468,9 @@ class TestReleaseCommandIntegration:
                 assert root.get("version") == "1.0.0"
 
                 # Now run actual release
-                result = self.runner.invoke(release, ["patch", "--news", "Test release"])
+                result = self.runner.invoke(
+                    release, ["patch", "--summary", "Test release", "--news", "### Fixed\n- Test fix"]
+                )
                 assert result.exit_code == 0
                 assert "Current version: 1.0.0" in result.output
                 assert "New version: 1.0.1" in result.output
@@ -1409,7 +1482,7 @@ class TestReleaseCommandIntegration:
                 assert root.get("version") == "1.0.1"
 
                 # Verify git state
-                assert repo.head.commit.message == "v1.0.1: Test release"
+                assert repo.head.commit.message == "release: 1.0.1 - Test release"
                 assert "v1.0.1" in [tag.name for tag in repo.tags]
 
             finally:
