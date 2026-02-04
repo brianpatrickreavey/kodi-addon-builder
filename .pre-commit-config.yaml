@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 26.1.0  # Match local Black version
+    rev: 24.10.0  # Compatible with Python 3.9+ for CI
     hooks:
       - id: black
         language_version: python3

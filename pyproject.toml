@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kodi-addon-builder"
-version = "0.4.3"
+version = "0.5.0"
 description = "A CLI tool to automate version bumping, committing, tagging, pushing, releasing, and local zip artifact generation for Kodi addons."
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -32,7 +32,7 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "black>=22.0.0",
+    "black>=24.10.0",
     "flake8>=4.0.0",
     "flake8-pyproject>=1.0.0",
     "pyright>=1.1.0",

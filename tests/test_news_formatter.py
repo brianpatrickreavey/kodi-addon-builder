@@ -137,7 +137,8 @@ class TestUpdateFunctions:
     def test_update_changelog_with_content_existing_file(self, tmp_path):
         """Test updating changelog when file already exists."""
         changelog_path = tmp_path / "CHANGELOG.md"
-        changelog_path.write_text("""# Changelog
+        changelog_path.write_text(
+            """# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -150,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Previous bug fix
-""")
+"""
+        )
 
         new_entry = "## [1.0.0] - 2024-01-01 - New release\n\n### Added\n- New feature\n"
 
@@ -166,13 +168,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     def test_update_addon_news_new_element(self, tmp_path):
         """Test adding news element when it doesn't exist."""
         addon_xml_path = tmp_path / "addon.xml"
-        addon_xml_path.write_text("""<?xml version="1.0" encoding="UTF-8"?>
+        addon_xml_path.write_text(
+            """<?xml version="1.0" encoding="UTF-8"?>
 <addon id="plugin.video.test" version="1.0.0" xmlns="http://www.kodi.tv">
     <extension point="xbmc.addon.metadata">
         <summary>Test addon</summary>
         <version>1.0.0</version>
     </extension>
-</addon>""")
+</addon>"""
+        )
 
         news_content = "[fix] Bug fix\n[upd] API change"
         update_addon_news(addon_xml_path, news_content)
@@ -184,14 +188,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     def test_update_addon_news_existing_element(self, tmp_path):
         """Test updating news element when it already exists."""
         addon_xml_path = tmp_path / "addon.xml"
-        addon_xml_path.write_text("""<?xml version="1.0" encoding="UTF-8"?>
+        addon_xml_path.write_text(
+            """<?xml version="1.0" encoding="UTF-8"?>
 <addon id="plugin.video.test" version="1.0.0" xmlns="http://www.kodi.tv">
     <extension point="xbmc.addon.metadata">
         <summary>Test addon</summary>
         <version>1.0.0</version>
         <news>Old news content</news>
     </extension>
-</addon>""")
+</addon>"""
+        )
 
         news_content = "[new] New feature"
         update_addon_news(addon_xml_path, news_content)
@@ -212,12 +218,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     def test_update_addon_news_missing_extension(self, tmp_path):
         """Test error handling when extension element is missing."""
         addon_xml_path = tmp_path / "addon.xml"
-        addon_xml_path.write_text("""<?xml version="1.0" encoding="UTF-8"?>
+        addon_xml_path.write_text(
+            """<?xml version="1.0" encoding="UTF-8"?>
 <addon id="plugin.video.test" version="1.0.0" xmlns="http://www.kodi.tv">
     <extension point="xbmc.python.script">
         <summary>Test addon</summary>
     </extension>
-</addon>""")
+</addon>"""
+        )
 
         with pytest.raises(ValueError, match="Could not find xbmc.addon.metadata extension"):
             update_addon_news(addon_xml_path, "news content")
