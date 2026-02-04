@@ -1202,6 +1202,94 @@ class TestReleaseCommand:
         assert f"addon.xml not found at {fake_dir}/addon.xml" in result.output
 
     @patch("kodi_addon_builder.cli.get_repo")
+    @patch("kodi_addon_builder.cli.find_addon_xml")
+    @patch("kodi_addon_builder.cli.validate_addon_xml")
+    @patch("kodi_addon_builder.cli.bump_version")
+    @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
+    @patch("kodi_addon_builder.cli.stage_changes")
+    @patch("kodi_addon_builder.cli.commit_changes")
+    @patch("kodi_addon_builder.cli.create_tag")
+    @patch("kodi_addon_builder.cli.push_commits")
+    @patch("kodi_addon_builder.cli.push_tags")
+    @patch("kodi_addon_builder.cli.get_current_branch")
+    def test_release_with_relative_paths(
+        self,
+        mock_get_branch,
+        mock_push_tags,
+        mock_push_commits,
+        mock_create_tag,
+        mock_commit_changes,
+        mock_stage_changes,
+        mock_run_pre_commit,
+        mock_bump_version,
+        mock_validate_xml,
+        mock_find_xml,
+        mock_get_repo,
+        tmp_path,
+    ):
+        """Test release with relative paths for addon-path and pyproject-file."""
+        # Create the directory structure first (before Click validation)
+        addon_rel_path = "plugin.video.test"
+        addon_dir = tmp_path / addon_rel_path
+        addon_dir.mkdir()
+        addon_xml_path = addon_dir / "addon.xml"
+        addon_xml_path.write_text('<addon id="plugin.video.test" version="1.0.0"/>')
+
+        pyproject_rel_path = "pyproject.toml"
+        pyproject_path = tmp_path / pyproject_rel_path
+        pyproject_path.write_text('[project]\nname = "test"\nversion = "1.0.0"\n')
+
+        # Create a mock repo with a working directory
+        mock_repo = MagicMock()
+        mock_repo.working_dir = str(tmp_path)
+        mock_repo.is_dirty.return_value = False
+        mock_get_repo.return_value = mock_repo
+
+        mock_tree = MagicMock()
+        mock_root = MagicMock()
+        mock_root.get.return_value = "1.0.0"
+        mock_validate_xml.return_value = (mock_tree, mock_root, "1.0.0")
+
+        mock_bump_version.return_value = "1.1.0"
+        mock_commit_changes.return_value = "abc123"
+        mock_get_branch.return_value = "master"
+
+        # Change to the temp directory so relative paths work
+        import os
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = self.runner.invoke(
+                release,
+                [
+                    "patch",
+                    "--addon-path",
+                    addon_rel_path,
+                    "--pyproject-file",
+                    pyproject_rel_path,
+                    "--non-interactive",
+                    "--no-pre-commit",
+                ],
+            )
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+
+        # Verify that stage_changes was called with resolved relative paths
+        mock_stage_changes.assert_called_once()
+        staged_files = mock_stage_changes.call_args[0][1]  # Second argument is files list
+
+        # All paths should be relative to repo root
+        expected_files = [
+            f"{addon_rel_path}/addon.xml",
+            f"{addon_rel_path}/CHANGELOG.md",
+            pyproject_rel_path,
+        ]
+        assert staged_files == expected_files
+
+    @patch("kodi_addon_builder.cli.get_repo")
     @patch("kodi_addon_builder.cli.validate_addon_xml")
     @patch("kodi_addon_builder.cli.find_addon_xml")
     @patch("kodi_addon_builder.cli.bump_version")

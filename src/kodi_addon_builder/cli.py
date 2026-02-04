@@ -629,12 +629,13 @@ def release(
             raise click.ClickException(str(e))  # pragma: no cover
 
     # Stage changes
+    repo_path = Path(repo.working_dir)
     files_to_stage = [
-        str(addon_xml_path.relative_to(repo.working_dir)),
-        str(changelog_path.relative_to(repo.working_dir)),
+        str(addon_xml_path.resolve().relative_to(repo_path)),
+        str(changelog_path.resolve().relative_to(repo_path)),
     ]
     if pyproject_file:
-        files_to_stage.append(str(Path(pyproject_file).relative_to(repo.working_dir)))
+        files_to_stage.append(str(Path(pyproject_file).resolve().relative_to(repo_path)))
     try:
         stage_changes(repo, files_to_stage)
     except Exception as e:
