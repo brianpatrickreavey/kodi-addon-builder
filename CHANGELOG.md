@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-02-04
+
+### Added
+- **Complete news formatting system** with Keep a Changelog markdown support
+- **Enhanced release command** with required `--summary` and `--news` parameters
+- **Addon.xml news section updates** with Kodi-compatible bracketed format ([new], [fix], [upd], etc.)
+- **1500 character limit enforcement** for addon.xml news sections
+- **Comprehensive dry-run mode** with preview file generation (`/dry-run` directory)
+- **Integration testing infrastructure** with test addon (`script.module.test-kodi-addon-builder`)
+- **Modern semver API** (no deprecation warnings)
+- **Improved CLI** with simplified options and better error messages
+
+### Changed
+- **Release workflow** now requires both summary and news content
+- **Addon.xml news format** updated to use bracketed categories instead of bullet points
+- **Dry-run output** enhanced with complete file previews and executable git commands script
+- **Test coverage** improved to 83% (from 48% by removing dead code)
+
+### Removed
+- **Deprecated CLI commands** (`bump`, `bump_commit`) replaced by enhanced `release` command
+- **Old semver methods** updated to modern API
+- **Dead code** (`cli-old.py`) removed
+
+### Fixed
+- **XML parsing** improved for both attribute and element-based version formats
+- **Test expectations** updated for new dry-run message format
+- **File cleanup** removed extraneous content from test files
+
+---
+
 ## [0.3.6] - 2026-02-01
 - Updated CI workflow to use uv export for dependency installation
 - Improved CI dependency management with proper system Python installation
