@@ -22,7 +22,7 @@ clean:  ## Clean up generated files
 	rm -rf htmlcov/ .coverage .pytest_cache/ src/*.egg-info/ dist/
 
 build:  ## Build package distributions
-	python -m build
+	uv run python -m build
 
 build-check:  ## Check built distributions
-	twine check dist/*
+	uv run twine check dist/*
