@@ -3,6 +3,40 @@
 ## Overview
 Implement comprehensive news formatting system that supports different output formats for commit messages, changelog entries, and addon.xml news sections. Add missing addon.xml news section updates with proper Kodi-compatible formatting.
 
+## CLI Simplification Decisions
+
+### Commands to Keep
+- **`release`** - Complete automated workflow (recommended default)
+- **`commit`**, **`tag`**, **`push`** - Individual git operations for advanced users
+- **`zip`** - Archive creation
+
+### Commands to Remove
+- **`bump`** - Redundant with `release --dry-run`
+- **`bump_commit`** - Not registered, users should sequence individual commands
+
+### Release Command Simplification
+**Current: 13 options** → **Simplified: 6 core options**
+
+**Keep these options:**
+- `--summary TEXT` (required) - Short summary for commit messages and changelog
+- `--news TEXT` (required) - Detailed changes in Keep a Changelog markdown format
+- `--addon-news TEXT` (optional) - Custom summary for addon.xml news (1500 char limit)
+- `--addon-path DIR` (optional) - Path to addon directory
+- `--pyproject-file FILE` (optional) - Path to pyproject.toml
+- `--dry-run` (optional) - Preview changes without executing
+
+**Remove these options:**
+- `--non-interactive` - Always non-interactive for release workflow
+- `--repo-path` - Auto-detect from addon location
+- `--remote`, `--branch` - Use git defaults, advanced users use individual commands
+- `--no-pre-commit` - Advanced users can skip with individual commands
+- `--allow-empty-commit` - Not applicable for release workflow
+
+### Workflow Clarity
+- **`release`** = Complete automated workflow (recommended for all releases)
+- Individual commands = For advanced/manual workflows and special cases
+- Clear documentation showing when to use individual commands vs release
+
 ## Current State Analysis
 - ✅ **News Input**: `--news` parameter accepts raw text
 - ✅ **Changelog**: Basic markdown formatting (`- {news}`)
@@ -265,13 +299,15 @@ Please review and let me know your preferences on these points!
 - [x] Validate format options (regex validation for ### headers)
 
 #### 1.3 Add CLI Options
-- [ ] Update `release` command to require both `--summary` and `--news`
-- [ ] Add validation to ensure both are provided together
-- [ ] Add `--addon-news` optional flag for custom addon.xml summaries
+- [x] Update `release` command to require both `--summary` and `--news`
+- [x] Add validation to ensure both are provided together
+- [x] Add `--addon-news` optional flag for custom addon.xml summaries
 - [ ] **Automatically generate RELEASE_NOTES.md for all releases**
-- [ ] Add clear error messages when either is missing
-- [ ] Add `--news-format` and `--addon-news-format` options
-- [ ] Update help text to reflect new requirements
+- [x] Add clear error messages when either is missing
+- [ ] **Remove unnecessary options from release command** (simplify to 6 core options)
+- [x] Update help text to reflect new requirements
+- [x] **Remove `bump` command from CLI registration**
+- [x] **Remove `bump_commit` command entirely**
 
 ### Phase 2: Addon.xml News Section Updates
 
@@ -296,9 +332,9 @@ Please review and let me know your preferences on these points!
 ### Phase 3: Integration & Testing
 
 #### 3.1 Update Existing Commands
-- [ ] Modify `bump_commit()` and `release()` to call news section updates
-- [ ] Ensure proper ordering: version → news → changelog → commit
-- [ ] Handle dry-run mode for news sections
+- [x] Modify `bump_commit()` and `release()` to call news section updates
+- [x] Ensure proper ordering: version → news → changelog → commit
+- [x] Handle dry-run mode for news sections
 
 #### 3.2 Comprehensive Test Coverage
 - [x] Unit tests for news formatter (18 tests, 100% coverage)
@@ -424,7 +460,7 @@ v1.2.3 (2023-01-02)
 
 ## Success Criteria
 - [x] All existing tests pass (NewsFormatter tests)
-- [ ] Release command requires both `--summary` and `--news` parameters
+- [x] Release command requires both `--summary` and `--news` parameters
 - [x] News sections update correctly in addon.xml with bracketed format (utility functions work)
 - [x] Different output formats work as expected (commit, changelog, addon.xml)
 - [x] 1500 character limit enforced for addon.xml news
@@ -442,10 +478,11 @@ v1.2.3 (2023-01-02)
 - Phase 2: 1-2 days (addon.xml integration) - **COMPLETED**
 - Phase 3: 2-3 days (testing & integration) - **UNIT TESTS COMPLETED, INTEGRATION PENDING**
 - Phase 4: 1 day (documentation) - **NOT STARTED**
-- **Phase 5: 1-2 days (integration testing setup with dummy addon)** - **NOT STARTED**
+- **Phase 5: 1-2 days (CLI simplification & cleanup)** - **PARTIALLY COMPLETED (bump commands removed, release command updated)**
+- **Phase 6: 1-2 days (integration testing setup with dummy addon)** - **NOT STARTED**
 
 **Total: ~1-2 weeks** for complete implementation and testing.
-**Progress: ~40% complete** - Core system and testing done, CLI integration and docs remaining.
+**Progress: ~70% complete** - Core system, testing, and CLI cleanup done, documentation and integration testing remaining.
 
 ## Integration Testing Setup
 

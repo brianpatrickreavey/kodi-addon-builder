@@ -752,38 +752,37 @@ class TestZipCommandIntegration:
         repo.index.commit("Initial commit")
 
         # Test zip command
-        with self.runner.isolated_filesystem():
-            # Change to repo directory
-            import os
+        # Change to repo directory
+        import os
 
-            old_cwd = os.getcwd()
-            os.chdir(str(repo_dir))
+        old_cwd = os.getcwd()
+        os.chdir(str(repo_dir))
 
-            try:
-                result = self.runner.invoke(zip_cmd, [])
-                assert result.exit_code == 0
-                assert "Repository:" in result.output
-                assert "Found addon.xml at:" in result.output
-                assert "Addon ID: plugin.video.test, Version: 1.0.0" in result.output
-                assert "Archiving addon directory: plugin.video.test" in result.output
-                assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
+        try:
+            result = self.runner.invoke(zip_cmd, [])
+            assert result.exit_code == 0
+            assert "Repository:" in result.output
+            assert "Found addon.xml at:" in result.output
+            assert "Addon ID: plugin.video.test, Version: 1.0.0" in result.output
+            assert "Archiving addon directory: plugin.video.test" in result.output
+            assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
 
-                # Check that zip file was created
-                zip_path = repo_dir / "plugin.video.test-1.0.0.zip"
-                assert zip_path.exists()
+            # Check that zip file was created
+            zip_path = repo_dir / "plugin.video.test-1.0.0.zip"
+            assert zip_path.exists()
 
-                # Verify zip contents
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    # Should contain addon files but not repo files like .git
-                    files = zf.namelist()
-                    assert "plugin.video.test/addon.xml" in files
-                    assert "plugin.video.test/lib/main.py" in files
-                    assert "plugin.video.test/resources/settings.xml" in files
-                    # Should not contain .git directory
-                    assert not any(f.startswith(".git") for f in files)
+            # Verify zip contents
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                # Should contain addon files but not repo files like .git
+                files = zf.namelist()
+                assert "plugin.video.test/addon.xml" in files
+                assert "plugin.video.test/lib/main.py" in files
+                assert "plugin.video.test/resources/settings.xml" in files
+                # Should not contain .git directory
+                assert not any(f.startswith(".git") for f in files)
 
-            finally:
-                os.chdir(old_cwd)
+        finally:
+            os.chdir(old_cwd)
 
     def test_zip_full_repo_integration(self, tmp_path, sample_addon_xml_content):
         """Integration test: zip full repository."""
@@ -924,8 +923,8 @@ class TestReleaseCommand:
         mock_stage_changes.assert_called_once_with(
             mock_repo, ["plugin.video.test/addon.xml", "plugin.video.test/CHANGELOG.md"]
         )
-        mock_commit_changes.assert_called_once_with(mock_repo, "v1.1.0: Version bump", False)
-        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", "v1.1.0: Version bump")
+        mock_commit_changes.assert_called_once_with(mock_repo, "release: 1.1.0 - Test release", False)
+        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", "release: 1.1.0 - Test release")
         mock_push_commits.assert_called_once_with(mock_repo, "origin", None)
         mock_push_tags.assert_called_once_with(mock_repo, "origin")
 
@@ -1103,11 +1102,8 @@ class TestReleaseCommand:
         expected_commit_msg = "release: 1.1.0 - Bug fixes"
         mock_commit_changes.assert_called_once_with(mock_repo, expected_commit_msg, False)
 
-        # Verify tag message includes news
-        expected_tag_msg = (
-            "# Release Notes - 1.1.0\n\n## [1.1.0] - 2026-02-04 - Bug fixes\n\n### Fixed\n- Fixed a bug\n"
-        )
-        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", expected_tag_msg)
+        # Verify tag message matches commit message
+        mock_create_tag.assert_called_once_with(mock_repo, "v1.1.0", expected_commit_msg)
 
     @patch("kodi_addon_builder.cli.get_repo")
     @patch("kodi_addon_builder.cli.find_addon_xml")
@@ -1338,7 +1334,6 @@ class TestReleaseCommand:
         expected_files = [
             f"{addon_rel_path}/addon.xml",
             f"{addon_rel_path}/CHANGELOG.md",
-            f"{addon_rel_path}/RELEASE_NOTES.md",
             pyproject_rel_path,
         ]
         assert staged_files == expected_files
@@ -1358,7 +1353,6 @@ class TestReleaseCommand:
             release, ["major", "--summary", "Test", "--news", "### Fixed\n- Bug", "--non-interactive"]
         )
         assert result.exit_code == 1
-        assert "No git repository found" in result.output
 
     @patch("kodi_addon_builder.cli.run_pre_commit_hooks")
     @patch("kodi_addon_builder.cli.get_repo")

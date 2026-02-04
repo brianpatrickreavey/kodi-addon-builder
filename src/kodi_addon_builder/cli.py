@@ -19,7 +19,6 @@ from .git_operations import (
     get_current_branch,
     create_zip_archive,
     get_addon_relative_path,
-    is_tree_clean,
 )
 
 from .news_formatter import NewsFormatter
@@ -51,30 +50,36 @@ def validate_addon_xml(addon_path):
         tree = ET.parse(addon_path)
         root = tree.getroot()
 
-        # Find the extension with point="xbmc.addon.metadata"
-        extension = None
-        for elem in root:
-            # Handle namespaced tags
-            tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
-            if tag_name == "extension" and elem.get("point") == "xbmc.addon.metadata":
-                extension = elem
-                break
+        # Get version from addon element attribute
+        version = root.get("version")
+        if version:
+            version = version.strip()
+        else:
+            # Fallback: look for version element in metadata extension
+            extension = None
+            for elem in root:
+                # Handle namespaced tags
+                tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+                if tag_name == "extension" and elem.get("point") == "xbmc.addon.metadata":
+                    extension = elem
+                    break
 
-        if extension is None:
-            raise ValueError("Could not find xbmc.addon.metadata extension in addon.xml")
+            if extension is None:
+                raise ValueError("Could not find xbmc.addon.metadata extension in addon.xml")
 
-        # Extract version
-        version_elem = None
-        for elem in extension:
-            tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
-            if tag_name == "version":
-                version_elem = elem
-                break
+            # Extract version
+            version_elem = None
+            for elem in extension:
+                tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+                if tag_name == "version":
+                    version_elem = elem
+                    break
 
-        if version_elem is None or version_elem.text is None:
-            raise ValueError("Version element not found or empty in addon.xml")
+            if version_elem is None or version_elem.text is None:
+                raise ValueError("Version not found in addon.xml")
 
-        version = version_elem.text.strip()
+            version = version_elem.text.strip()
+
         try:
             semver.parse(version)
         except ValueError as e:
@@ -84,6 +89,8 @@ def validate_addon_xml(addon_path):
 
     except ET.ParseError as e:
         raise ValueError(f"Invalid XML in addon.xml: {e}")
+    except FileNotFoundError:
+        raise ValueError(f"addon.xml not found at {addon_path}")
 
 
 def update_addon_xml(addon_path, new_version):
@@ -134,12 +141,22 @@ def bump_version(current_version, bump_type):
 def update_pyproject_version(pyproject_path, new_version):
     """Update version in pyproject.toml."""
     import tomllib
-    import tomli_w
+
+    try:
+        import tomli_w
+    except ImportError:
+        raise ValueError("tomli_w is required to update pyproject.toml. Install it with: pip install tomli_w")
 
     with open(pyproject_path, "rb") as f:
         data = tomllib.load(f)
 
-    data["tool"]["poetry"]["version"] = new_version
+    # Handle different pyproject.toml formats
+    if "project" in data:
+        data["project"]["version"] = new_version
+    elif "tool" in data and "poetry" in data["tool"]:
+        data["tool"]["poetry"]["version"] = new_version
+    else:
+        raise ValueError("Unsupported pyproject.toml format")
 
     with open(pyproject_path, "wb") as f:
         tomli_w.dump(data, f)
@@ -357,127 +374,23 @@ def bump(
 
 
 @click.command()
-@click.argument("bump_type", type=click.Choice(["major", "minor", "patch"]))
-@click.option(
-    "--addon-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
-    help="Path to the addon directory containing addon.xml",
-)
-@click.option(
-    "--pyproject-file",
-    type=click.Path(exists=True, dir_okay=False),
-    help="Path to pyproject.toml to also update version in",
-)
-@click.option("--news", help="News/changelog content for this version")
-@click.option("--news-file", type=click.Path(exists=True, dir_okay=False), help="File containing news content")
-@click.option("--editor", is_flag=True, help="Open editor to enter news content")
-@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode")
-@click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
+@click.option("--message", "-m", required=True, help="Commit message")
+@click.option("--files", multiple=True, help="Specific files to stage (default: all changes)")
+@click.option("--allow-empty", is_flag=True, help="Allow empty commits")
+@click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
 @click.option(
     "--repo-path",
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
     help="Path to the git repository",
 )
-@click.option("--remote", default="origin", help="Remote name (default: origin)")
-@click.option("--branch", "-b", help="Branch to push (default: current branch)")
-@click.option("--no-pre-commit", is_flag=True, help="Skip pre-commit hook checks")
-@click.option("--allow-empty-commit", is_flag=True, help="Allow empty commits")
-def bump_commit(
-    bump_type,
-    addon_path,
-    pyproject_file,
-    news,
-    news_file,
-    editor,
-    non_interactive,
-    dry_run,
-    repo_path,
-    remote,
-    branch,
-    no_pre_commit,
-    allow_empty_commit,
-):
-    """Bump version, update changelog, and commit changes."""
-    # Find addon.xml
-    if addon_path:
-        addon_dir = Path(addon_path)
-        addon_xml_path = addon_dir / "addon.xml"
-        if not addon_xml_path.exists():
-            raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
-    else:
-        addon_xml_path = find_addon_xml()
-        if not addon_xml_path:
-            raise click.ClickException("Could not find addon.xml in current directory or subdirectories")
-        addon_dir = addon_xml_path.parent
-
-    click.echo(f"Found addon.xml at: {addon_xml_path}")
-
-    # Get repo
-    repo = get_repo(Path(repo_path) if repo_path else addon_dir)
-
-    # Check tree clean
-    if not is_tree_clean(repo):
-        raise click.ClickException("Working tree is not clean. Please commit or stash changes first.")
-
-    # Validate and parse addon.xml
+def commit(message, files, allow_empty, no_pre_commit, repo_path):
+    """Stage and commit changes with a custom message."""
     try:
-        tree, root, current_version = validate_addon_xml(addon_xml_path)
+        repo = get_repo(Path(repo_path) if repo_path else None)
     except ValueError as e:
-        raise click.ClickException(f"Invalid addon.xml: {e}")
+        raise click.ClickException(str(e))
 
-    click.echo(f"Current version: {current_version}")
-
-    # Bump version
-    try:
-        new_version = bump_version(current_version, bump_type)
-    except ValueError as e:
-        raise click.ClickException(f"Failed to bump version: {e}")
-
-    click.echo(f"New version: {new_version}")
-
-    # Get news content
-    if news_file:
-        with open(news_file, "r", encoding="utf-8") as f:
-            news_content = f.read().strip()
-    elif editor:
-        news_content = click.edit("Enter news/changelog for this version")
-        if news_content:
-            news_content = news_content.strip()
-    elif news:
-        news_content = news
-    elif not non_interactive:
-        news_content = click.prompt("Enter news/changelog for this version")
-    else:
-        raise click.ClickException("News is required. Use --news, --news-file, or --editor, or run interactively.")
-
-    if not news_content:
-        raise click.ClickException("News cannot be empty.")
-
-    click.echo(f"News: {news_content}")
-
-    # Dry run
-    if dry_run:
-        click.echo("Dry run: No changes made")
-        if pyproject_file:
-            click.echo(f"Would update {pyproject_file} with version {new_version}")
-        return
-
-    # Update addon.xml
-    update_addon_xml(addon_xml_path, new_version)
-
-    # Update changelog using NewsFormatter
-    changelog_path = addon_dir / "CHANGELOG.md"
-    formatter = NewsFormatter(summary=f"Release {new_version}", news=news_content, version=new_version)
-    changelog_entry = formatter.format_for_changelog()
-    update_changelog_with_content(changelog_path, changelog_entry)
-
-    # Update pyproject.toml if provided
-    if pyproject_file:
-        update_pyproject_version(pyproject_file, new_version)
-
-    click.echo(f"Updated addon.xml and CHANGELOG.md with version {new_version}")
-    if pyproject_file:
-        click.echo(f"Updated {pyproject_file} with version {new_version}")
+    click.echo(f"Repository: {repo.working_dir}")
 
     # Run pre-commit hooks
     if not no_pre_commit:
@@ -486,29 +399,15 @@ def bump_commit(
         except ValueError as e:
             raise click.ClickException(str(e))
 
-    # Stage and commit
+    # Stage changes
     try:
-        stage_changes(repo, None)  # stage all
-        commit_hash = commit_changes(repo, f"Release {new_version}", allow_empty_commit)
-        click.echo(f"Committed changes: {commit_hash}")
+        stage_changes(repo, list(files) if files else None)
     except Exception as e:
-        raise click.ClickException(f"Failed to commit: {e}")
+        raise click.ClickException(f"Failed to stage changes: {e}")
 
-
-@click.command()
-@click.argument("message")
-@click.option(
-    "--repo-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
-    help="Path to the git repository",
-)
-@click.option("--allow-empty-commit", is_flag=True, help="Allow empty commits")
-def commit(message, repo_path, allow_empty_commit):
-    """Commit changes with the given message."""
-    repo = get_repo(Path(repo_path) if repo_path else None)
-
+    # Commit
     try:
-        commit_hash = commit_changes(repo, message, allow_empty_commit)
+        commit_hash = commit_changes(repo, message, allow_empty)
         click.echo(f"Committed changes: {commit_hash}")
     except ValueError as e:
         raise click.ClickException(str(e))
@@ -524,7 +423,12 @@ def commit(message, repo_path, allow_empty_commit):
 @click.option("--message", "-m", help="Tag message")
 def tag(tag_name, repo_path, message):
     """Create a git tag."""
-    repo = get_repo(Path(repo_path) if repo_path else None)
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    click.echo(f"Repository: {repo.working_dir}")
 
     try:
         create_tag(repo, tag_name, message)
@@ -544,7 +448,12 @@ def tag(tag_name, repo_path, message):
 @click.option("--tags", is_flag=True, help="Also push tags")
 def push(repo_path, remote, branch, tags):
     """Push commits and optionally tags."""
-    repo = get_repo(Path(repo_path) if repo_path else None)
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+    click.echo(f"Repository: {repo.working_dir}")
 
     # Push commits
     try:
@@ -564,39 +473,87 @@ def push(repo_path, remote, branch, tags):
 
 
 @click.command()
-@click.argument("output_path", type=click.Path())
-@click.argument("commit", required=False)
+@click.option(
+    "--output",
+    "-o",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    help="Output path for the zip file (default: auto-generated)",
+)
+@click.option("--commit", default="HEAD", help="Git commit/tag to archive (default: HEAD)")
+@click.option(
+    "--full-repo",
+    is_flag=True,
+    help="Archive the full repository instead of addon-only",
+)
+@click.option("--exclude", multiple=True, help="Files/patterns to exclude from archive")
+@click.option(
+    "--addon-path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    help="Path to the addon directory containing addon.xml",
+)
 @click.option(
     "--repo-path",
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
     help="Path to the git repository",
 )
-@click.option(
-    "--addon-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
-    help="Path to the addon directory to archive",
-)
-@click.option("--exclude", multiple=True, help="Patterns to exclude from archive")
-def zip_cmd(output_path, commit, repo_path, addon_path, exclude):
-    """Create a zip archive of the repository or addon directory."""
-    repo = get_repo(Path(repo_path) if repo_path else None)
+def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
+    """Create a zip archive of the addon using git archive."""
+    # Get repo
+    try:
+        repo = get_repo(Path(repo_path) if repo_path else None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
 
+    click.echo(f"Repository: {repo.working_dir}")
+
+    # Find addon.xml
     if addon_path:
+        addon_dir = Path(addon_path)
+        addon_xml_path = addon_dir / "addon.xml"
+        if not addon_xml_path.exists():
+            raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
+    else:
+        addon_xml_path = find_addon_xml()
+        if not addon_xml_path:
+            raise click.ClickException("Could not find addon.xml in current directory or subdirectories")
+        addon_dir = addon_xml_path.parent
+
+    click.echo(f"Found addon.xml at: {addon_xml_path}")
+
+    # Validate addon.xml
+    try:
+        tree, root, version = validate_addon_xml(addon_xml_path)
+    except ValueError as e:
+        raise click.ClickException(f"Invalid addon.xml: {e}")
+
+    addon_id = root.get("id")
+    if not addon_id:
+        raise click.ClickException("addon.xml missing 'id' attribute")
+
+    click.echo(f"Addon ID: {addon_id}, Version: {version}")
+
+    # Determine output path
+    if not output_path:
+        output_path = f"{addon_id}-{version}.zip"
+
+    # Archive
+    if full_repo:
+        # Archive the entire repo
+        paths = None
+        click.echo("Archiving full repository")
+    else:
         # Archive only the addon directory
         try:
-            addon_rel_path = get_addon_relative_path(repo, Path(addon_path) / "addon.xml")
+            addon_rel_path = get_addon_relative_path(repo, addon_xml_path)
             paths = [addon_rel_path]
             click.echo(f"Archiving addon directory: {addon_rel_path}")
         except ValueError as e:
             raise click.ClickException(f"Failed to determine addon path: {e}")
-    else:
-        # Archive the entire repo
-        paths = None
-        click.echo("Archiving entire repository")
 
     # Create the archive
     try:
-        create_zip_archive(repo, output_path, commit, paths, list(exclude) if exclude else None)
+        create_zip_archive(repo, Path(output_path), commit, paths, list(exclude) if exclude else None)
         click.echo(f"Created zip archive: {output_path}")
     except ValueError as e:
         raise click.ClickException(str(e))
@@ -685,23 +642,21 @@ def release(
 
     # Dry run
     if dry_run:
-        click.echo("Dry run - would perform the following actions:")
-        click.echo(f"  Bump version: {current_version} -> {new_version}")
-        click.echo("  Update addon.xml version")
-        click.echo("  Update CHANGELOG.md with formatted news")
-        click.echo("  Update addon.xml news section")
+        click.echo("Dry run: No changes made")
+        click.echo(f"Would bump version to {new_version}")
+        click.echo(f"Would commit with message: '{news_formatter.format_for_commit()}'")
+        click.echo(f"Would create tag: v{new_version}")
+        click.echo("Would push branch and tags to origin")
         if pyproject_file:
-            click.echo(f"  Update {pyproject_file} with version {new_version}")
-        click.echo("  Commit changes")
-        click.echo("  Create tag")
-        click.echo("  Push commits and tags")
+            click.echo(f"Would update {pyproject_file} with version {new_version}")
         return
 
     # Get repo for git operations
     repo = get_repo(Path(repo_path) if repo_path else None)
 
     # Update addon.xml version
-    update_addon_xml(addon_xml_path, new_version)
+    root.set("version", new_version)
+    tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
 
     # Update CHANGELOG.md
     changelog_path = addon_dir / "CHANGELOG.md"
@@ -716,8 +671,7 @@ def release(
     if pyproject_file:
         update_pyproject_version(pyproject_file, new_version)
 
-    click.echo(f"Updated addon.xml with version {new_version} and news")
-    click.echo(f"Updated CHANGELOG.md with version {new_version}")
+    click.echo(f"Updated addon.xml and CHANGELOG.md with version {new_version}")
     if pyproject_file:
         click.echo(f"Updated {pyproject_file} with version {new_version}")
 
@@ -751,7 +705,7 @@ def release(
 
     # Create tag
     tag_name = f"v{new_version}"
-    tag_message = news_formatter.format_for_release_notes()
+    tag_message = commit_message
     try:
         create_tag(repo, tag_name, tag_message)
         click.echo(f"Created tag: {tag_name}")
@@ -776,7 +730,6 @@ def release(
     click.echo(f"Successfully released version {new_version}")
 
 
-main.add_command(bump)
 main.add_command(commit)
 main.add_command(tag)
 main.add_command(push)
