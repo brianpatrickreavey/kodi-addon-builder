@@ -33,14 +33,15 @@ def main():
 
 
 def find_addon_xml(start_path=None):
-    """Find addon.xml file dynamically."""
+    """Find addon.xml file in the current directory only."""
     if start_path is None:
         start_path = Path.cwd()
     else:
         start_path = Path(start_path)
 
-    for path in start_path.rglob("addon.xml"):
-        return path
+    addon_xml_path = start_path / "addon.xml"
+    if addon_xml_path.exists():
+        return addon_xml_path
     return None
 
 
@@ -433,7 +434,7 @@ def zip_cmd(output_path, commit, full_repo, exclude, addon_path, repo_path):
 
     # Find addon.xml
     if addon_path:
-        addon_dir = Path(addon_path)
+        addon_dir = Path(repo.working_dir) / addon_path
         addon_xml_path = addon_dir / "addon.xml"
         if not addon_xml_path.exists():
             raise click.ClickException(f"addon.xml not found at {addon_xml_path}")
@@ -518,7 +519,10 @@ def release(
     else:
         addon_xml_path = find_addon_xml()
         if not addon_xml_path:
-            raise click.ClickException("Could not find addon.xml in current directory or subdirectories")
+            raise click.ClickException(
+                "Could not find addon.xml in current directory. "
+                "Either run this command from the addon directory, or specify --addon-path"
+            )
         addon_dir = addon_xml_path.parent
 
     click.echo(f"Found addon.xml at: {addon_xml_path}")

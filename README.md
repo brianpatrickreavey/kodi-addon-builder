@@ -36,19 +36,23 @@ pip install -e .
 
 ## Quick Start
 
-1. **Navigate to your addon directory** (containing `addon.xml`):
+1. **Navigate to your addon directory** (containing `addon.xml`) or use `--addon-path`:
    ```bash
+   # Option 1: Run from addon directory
    cd /path/to/your/kodi/addon
-   ```
-
-2. **Create a release** (bumps version, updates news, commits, tags, pushes):
-   ```bash
    kodi-addon-builder release patch \
+     --summary "Fixed critical bug in playback" \
+     --news "### Fixed\n- Resolved crash when loading videos\n- Fixed missing subtitles"
+
+   # Option 2: Run from repo root with --addon-path
+   cd /path/to/your/repo
+   kodi-addon-builder release patch \
+     --addon-path plugin.video.myaddon \
      --summary "Fixed critical bug in playback" \
      --news "### Fixed\n- Resolved crash when loading videos\n- Fixed missing subtitles"
    ```
 
-3. **Build a zip**:
+2. **Build a zip**:
    ```bash
    kodi-addon-builder zip --output my-addon.zip
    ```
@@ -66,7 +70,7 @@ pip install -e .
 
 **Optional parameters:**
 - `--addon-news <text>`: Custom summary for addon.xml news (if auto-generated exceeds 1500 chars)
-- `--addon-path <path>`: Path to addon directory (auto-detected if not specified)
+- `--addon-path <path>`: Path to addon directory (required when running from repo root)
 - `--pyproject-file <file>`: Path to pyproject.toml for version updates
 - `--dry-run`: Preview all actions without making changes
 - `--non-interactive`: Skip interactive prompts
@@ -115,7 +119,7 @@ Push commits and tags.
 Generate a zip archive of the addon using `git archive`.
 
 - `--output <file>`: Output zip file path (default: auto-generated)
-- `--addon-path <path>`: Addon directory (auto-detected if not specified)
+- `--addon-path <path>`: Addon directory (required when running from repo root)
 - `--full-repo`: Archive entire repository instead of addon directory
 - `--commit <sha>`: Specific commit to archive (default: HEAD)
 - `--exclude <patterns>`: Files/patterns to exclude from archive

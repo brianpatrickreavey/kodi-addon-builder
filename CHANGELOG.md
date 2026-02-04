@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.3] - 2026-02-04
+
+### Fixed
+- **Black configuration consistency** - Fixed discrepancy between `make format` and `pre-commit` Black formatting by updating pre-commit config to use explicit `--config pyproject.toml` and matching Black version (26.1.0)
+
+---
+
+### Changed
+- **Breaking: Addon.xml detection** - Commands now only look for addon.xml in the current directory. Use `--addon-path` when running from repository root. This ensures deterministic behavior across different Python versions and filesystem implementations.
+
+### Fixed
+- **Non-deterministic test failures** - Fixed Python 3.12 test failures caused by `rglob()` returning files in non-deterministic order
+- **Zip command path handling** - Fixed `--addon-path` option to properly resolve relative paths from repository root
+
+---
+
 ## [0.4.1] - 2026-02-04
 
 ### Fixed

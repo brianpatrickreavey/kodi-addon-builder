@@ -759,7 +759,7 @@ class TestZipCommandIntegration:
         os.chdir(str(repo_dir))
 
         try:
-            result = self.runner.invoke(zip_cmd, [])
+            result = self.runner.invoke(zip_cmd, ["--addon-path", "plugin.video.test"])
             assert result.exit_code == 0
             assert "Repository:" in result.output
             assert "Found addon.xml at:" in result.output
@@ -820,7 +820,7 @@ class TestZipCommandIntegration:
             os.chdir(str(repo_dir))
 
             try:
-                result = self.runner.invoke(zip_cmd, ["--full-repo"])
+                result = self.runner.invoke(zip_cmd, ["--full-repo", "--addon-path", "plugin.video.test"])
                 assert result.exit_code == 0
                 assert "Archiving full repository" in result.output
                 assert "Created zip archive: plugin.video.test-1.0.0.zip" in result.output
@@ -1313,8 +1313,101 @@ class TestReleaseCommandIntegration:
         """Set up test runner."""
         self.runner = CliRunner()
 
-    def test_release_integration(self, tmp_path, sample_addon_xml_content):
-        """Integration test: create git repo with addon, run full release."""
+    def test_release_integration_from_addon_dir(self, tmp_path, sample_addon_xml_content):
+        """Integration test: run release from addon directory (no --addon-path needed)."""
+        # Create a temporary git repository
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+
+        # Create a bare remote repo
+        remote_dir = tmp_path / "remote_repo"
+        remote_dir.mkdir()
+        git.Repo.init(remote_dir, bare=True)
+
+        # Initialize git repo
+        repo = git.Repo.init(repo_dir)
+
+        # Configure git user
+        repo.config_writer().set_value("user", "name", "Test User").release()
+        repo.config_writer().set_value("user", "email", "test@example.com").release()
+
+        # Add remote
+        repo.create_remote("origin", str(remote_dir))
+
+        # Create addon structure
+        addon_dir = repo_dir / "plugin.video.test"
+        addon_dir.mkdir()
+
+        # Create addon.xml in addon directory
+        addon_xml = addon_dir / "addon.xml"
+        addon_xml.write_text(sample_addon_xml_content)
+
+        # Add and commit initial files
+        repo.index.add("*")
+        repo.index.commit("Initial commit")
+
+        # Push initial commit
+        repo.git.push("origin", "master")
+
+        # Test release command from addon directory
+        with self.runner.isolated_filesystem():
+            import os
+
+            old_cwd = os.getcwd()
+            os.chdir(str(addon_dir))  # Change to addon directory
+
+            try:
+                # Run release in dry-run mode first
+                result = self.runner.invoke(
+                    release,
+                    [
+                        "patch",
+                        "--summary",
+                        "Test release",
+                        "--news",
+                        "### Fixed\n- Test fix",
+                        "--dry-run",
+                    ],
+                )
+                assert result.exit_code == 0
+                assert "Dry run: Creating preview files in /dry-run directory" in result.output
+                assert "Would bump version to 1.0.1" in result.output
+
+                # Verify no changes were made
+                tree = ET.parse(addon_xml)
+                root = tree.getroot()
+                assert root.get("version") == "1.0.0"
+
+                # Clean up dry-run directory
+                import shutil
+
+                dry_run_dir = addon_dir / "dry-run"
+                if dry_run_dir.exists():
+                    shutil.rmtree(dry_run_dir)
+
+                # Now run actual release
+                result = self.runner.invoke(
+                    release, ["patch", "--summary", "Test release", "--news", "### Fixed\n- Test fix"]
+                )
+                assert result.exit_code == 0
+                assert "Current version: 1.0.0" in result.output
+                assert "New version: 1.0.1" in result.output
+                assert "Successfully released version 1.0.1" in result.output
+
+                # Verify addon.xml was updated
+                tree = ET.parse(addon_xml)
+                root = tree.getroot()
+                assert root.get("version") == "1.0.1"
+
+                # Verify git state
+                assert repo.head.commit.message == "release: 1.0.1 - Test release"
+                assert "v1.0.1" in [tag.name for tag in repo.tags]
+
+            finally:
+                os.chdir(old_cwd)
+
+    def test_release_integration_with_addon_path(self, tmp_path, sample_addon_xml_content):
+        """Integration test: run release from repo root with --addon-path."""
         # Create a temporary git repository
         repo_dir = tmp_path / "test_repo"
         repo_dir.mkdir()
@@ -1349,12 +1442,12 @@ class TestReleaseCommandIntegration:
         # Push initial commit
         repo.git.push("origin", "master")
 
-        # Test release command
+        # Test release command from repo root with --addon-path
         with self.runner.isolated_filesystem():
             import os
 
             old_cwd = os.getcwd()
-            os.chdir(str(repo_dir))
+            os.chdir(str(repo_dir))  # Stay in repo root
 
             try:
                 # Run release in dry-run mode first
@@ -1362,6 +1455,8 @@ class TestReleaseCommandIntegration:
                     release,
                     [
                         "patch",
+                        "--addon-path",
+                        "plugin.video.test",
                         "--summary",
                         "Test release",
                         "--news",
@@ -1378,9 +1473,25 @@ class TestReleaseCommandIntegration:
                 root = tree.getroot()
                 assert root.get("version") == "1.0.0"
 
-                # Now run actual release
+                # Clean up dry-run directory
+                import shutil
+
+                dry_run_dir = repo_dir / "dry-run"
+                if dry_run_dir.exists():
+                    shutil.rmtree(dry_run_dir)
+
+                # Now run actual release with --addon-path
                 result = self.runner.invoke(
-                    release, ["patch", "--summary", "Test release", "--news", "### Fixed\n- Test fix"]
+                    release,
+                    [
+                        "patch",
+                        "--addon-path",
+                        "plugin.video.test",
+                        "--summary",
+                        "Test release",
+                        "--news",
+                        "### Fixed\n- Test fix",
+                    ],
                 )
                 assert result.exit_code == 0
                 assert "Current version: 1.0.0" in result.output
