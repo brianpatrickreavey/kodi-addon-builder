@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "kodi-addon-builder"
-version = "0.5.0"
+dynamic = ["version"]
 description = "A CLI tool to automate version bumping, committing, tagging, pushing, releasing, and local zip artifact generation for Kodi addons."
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
+keywords = ["kodi", "addon", "builder", "cli", "automation"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -18,6 +19,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Utilities",
 ]
 dependencies = [
     "click>=8.0.0",
@@ -36,15 +39,19 @@ dev = [
     "flake8-pyproject>=1.0.0",
     "pyright>=1.1.0",
     "pre-commit>=3.0.0",
+    "build",
+    "setuptools-scm",
+    "twine",
 ]
 ci = [
     "anybadge>=1.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/kodi-addon-builder"
-Repository = "https://github.com/yourusername/kodi-addon-builder.git"
-Issues = "https://github.com/yourusername/kodi-addon-builder/issues"
+Homepage = "https://github.com/brianpatrickreavey/kodi-addon-builder"
+Repository = "https://github.com/brianpatrickreavey/kodi-addon-builder.git"
+Issues = "https://github.com/brianpatrickreavey/kodi-addon-builder/issues"
+Changelog = "https://github.com/brianpatrickreavey/kodi-addon-builder/blob/main/CHANGELOG.md"
 
 [project.scripts]
 kodi-addon-builder = "kodi_addon_builder.cli:main"
@@ -55,3 +62,5 @@ line-length = 120
 [tool.flake8]
 max-line-length = 120
 extend-ignore = ["E203"]
+
+[tool.setuptools_scm]

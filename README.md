@@ -20,16 +20,22 @@ A CLI tool to automate version management, git operations, and packaging for Kod
 
 ## Installation
 
+### From PyPI (Recommended)
+```bash
+pip install kodi-addon-builder
+```
+
+### From Source
 Install directly from the git repository:
 
 ```bash
-pip install git+https://github.com/yourusername/kodi-addon-builder.git
+pip install git+https://github.com/brianpatrickreavey/kodi-addon-builder.git
 ```
 
 Or clone and install locally:
 
 ```bash
-git clone https://github.com/yourusername/kodi-addon-builder.git
+git clone https://github.com/brianpatrickreavey/kodi-addon-builder.git
 cd kodi-addon-builder
 pip install -e .
 ```
@@ -227,6 +233,8 @@ A: Fix the issues (e.g., run `make format` and `make lint`), then commit again.
 - **CI failures**: Review GitHub Actions logs; ensure secrets (e.g., GITHUB_TOKEN) are set.
 
 ## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, including commit message conventions and development standards.
 
 1. Fork the repository.
 2. Set up pre-commit hooks: `pre-commit install`
