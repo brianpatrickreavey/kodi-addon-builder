@@ -245,4 +245,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, including commit
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.# Build Process
+The project now includes automated building and validation via CI.
