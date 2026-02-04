@@ -90,6 +90,14 @@ jobs:
         name: coverage-report-${{ matrix.python-version }}
         path: coverage-reports/
         retention-days: 30
+    - name: Set up Python for badge generation
+      if: ${{ env.ACT != 'true' && github.ref == 'refs/heads/master' && matrix.python-version == '3.12' }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install anybadge
+      if: ${{ env.ACT != 'true' && github.ref == 'refs/heads/master' && matrix.python-version == '3.12' }}
+      run: pip install anybadge
     - name: Commit coverage badge to badges branch
       if: ${{ env.ACT != 'true' && github.ref == 'refs/heads/master' && matrix.python-version == '3.12' }}
       run: |
