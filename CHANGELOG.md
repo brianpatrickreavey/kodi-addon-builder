@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0](https://github.com/brianpatrickreavey/kodi-addon-builder/compare/v0.5.0...v0.6.0) (2026-02-04)
+
+
+### Features
+
+* add automated build process ([d286a98](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/d286a98c6f990bfbd306494ee06853761d9253b6))
+* add build job to CI for required status checks ([f64733c](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/f64733cf9eceac18ecf45bd3ac77d0667f9ed649))
+
+
+### Bug Fixes
+
+* align Black versions and update dependencies ([c90a0a6](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/c90a0a6b468d66a00c5ef5e238c859515edb7bd0))
+* Black version compatibility for CI ([c45ef62](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/c45ef620d3f341c4186e51390443cede37afdc6f))
+* install uv in build job to fix CI error ([f768b31](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/f768b31f1266d2a5809433df3208c655ed6c7bb2))
+* update release-please action to googleapis version ([5845151](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/58451516429f52431415a2997fabb9e13dc8f6eb))
+* use GITHUB_ACTIONS env var to detect CI vs act ([e388277](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/e388277dbaa4eeba1ff78570a014659db8281598))
+* use uv run for build commands in Makefile ([2c24f2f](https://github.com/brianpatrickreavey/kodi-addon-builder/commit/2c24f2fd97e8d91ef76f413de9f5a1ece9975fb2))
+
 ## [0.5.0] - 2026-02-04
 
 ### Changed
