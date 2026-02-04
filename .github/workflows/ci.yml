@@ -52,7 +52,7 @@ jobs:
         python -m pytest --cov=src/kodi_addon_builder --cov-report=xml --cov-report=html
 
     - name: Upload coverage artifacts
-      if: ${{ env.ACTIONS_RUNTIME_TOKEN != '' }}
+      if: ${{ env.GITHUB_ACTIONS == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: coverage-${{ matrix.python-version }}
