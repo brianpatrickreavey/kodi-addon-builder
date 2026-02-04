@@ -145,7 +145,12 @@ def bump_version(current_version, bump_type):
 
 def update_pyproject_version(pyproject_path, new_version):
     """Update version in pyproject.toml."""
-    import tomllib
+    import sys
+
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
 
     try:
         import tomli_w
