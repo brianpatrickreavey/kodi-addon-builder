@@ -52,7 +52,7 @@ jobs:
         python -m pytest --cov=src/kodi_addon_builder --cov-report=xml --cov-report=html
 
     - name: Upload coverage artifacts
-      if: ${{ env.GITHUB_ACTIONS == 'true' }}
+      if: ${{ env.ACT != 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: coverage-${{ matrix.python-version }}
@@ -67,19 +67,26 @@ jobs:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
+    - name: Skip Upload Artifacts on ACT
+      if: ${{ env.ACT == 'true' }}
+      run: |
+        echo "Skipping Upload Artifacts job on ACT"
+        exit 0
     - name: Download coverage artifacts
+      if: ${{ env.ACT != 'true' }}
       uses: actions/download-artifact@v4
       with:
         name: coverage-${{ matrix.python-version }}
         path: coverage-reports/
     - name: Upload coverage reports
+      if: ${{ env.ACT != 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report-${{ matrix.python-version }}
         path: coverage-reports/
         retention-days: 30
     - name: Commit coverage badge to badges branch
-      if: github.ref == 'refs/heads/master' && matrix.python-version == '3.12'
+      if: ${{ env.ACT != 'true' && github.ref == 'refs/heads/master' && matrix.python-version == '3.12' }}
       run: |
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@github.com'
