@@ -81,7 +81,7 @@ def validate_addon_xml(addon_path):
             version = version_elem.text.strip()
 
         try:
-            semver.parse(version)
+            semver.Version.parse(version)
         except ValueError as e:
             raise ValueError(f"Invalid version format in addon.xml: {e}")
 
@@ -97,28 +97,32 @@ def update_addon_xml(addon_path, new_version):
     """Update version in addon.xml."""
     tree, root, _ = validate_addon_xml(addon_path)
 
-    # Find and update version
-    extension = None
-    for elem in root:
-        tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
-        if tag_name == "extension" and elem.get("point") == "xbmc.addon.metadata":
-            extension = elem
-            break
+    # Try to update version attribute on addon element first (preferred method)
+    if root.get("version") is not None:
+        root.set("version", new_version)
+    else:
+        # Fallback: update version element in metadata extension
+        extension = None
+        for elem in root:
+            tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+            if tag_name == "extension" and elem.get("point") == "xbmc.addon.metadata":
+                extension = elem
+                break
 
-    if extension is None:
-        raise ValueError("Could not find xbmc.addon.metadata extension in addon.xml")
+        if extension is None:
+            raise ValueError("Could not find xbmc.addon.metadata extension in addon.xml")
 
-    version_elem = None
-    for elem in extension:
-        tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
-        if tag_name == "version":
-            version_elem = elem
-            break
+        version_elem = None
+        for elem in extension:
+            tag_name = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+            if tag_name == "version":
+                version_elem = elem
+                break
 
-    if version_elem is None:
-        raise ValueError("Version element not found in addon.xml")
+        if version_elem is None:
+            raise ValueError("Version element not found in addon.xml")
 
-    version_elem.text = new_version
+        version_elem.text = new_version
 
     tree.write(addon_path, encoding="UTF-8", xml_declaration=True)
 
@@ -126,12 +130,13 @@ def update_addon_xml(addon_path, new_version):
 def bump_version(current_version, bump_type):
     """Bump version according to semver."""
     try:
+        version_obj = semver.Version.parse(current_version)
         if bump_type == "major":
-            return semver.bump_major(current_version)
+            return str(version_obj.bump_major())
         elif bump_type == "minor":
-            return semver.bump_minor(current_version)
+            return str(version_obj.bump_minor())
         elif bump_type == "patch":
-            return semver.bump_patch(current_version)
+            return str(version_obj.bump_patch())
         else:
             raise ValueError(f"Invalid bump type: {bump_type}")
     except Exception as e:
@@ -512,6 +517,7 @@ def release(
         addon_dir = addon_xml_path.parent
 
     click.echo(f"Found addon.xml at: {addon_xml_path}")
+    changelog_path = addon_dir / "CHANGELOG.md"
 
     # Validate and parse
     try:
@@ -540,13 +546,82 @@ def release(
 
     # Dry run
     if dry_run:
-        click.echo("Dry run: No changes made")
+        click.echo("Dry run: Creating preview files in /dry-run directory")
         click.echo(f"Would bump version to {new_version}")
         click.echo(f"Would commit with message: '{news_formatter.format_for_commit()}'")
         click.echo(f"Would create tag: v{new_version}")
         click.echo("Would push branch and tags to origin")
         if pyproject_file:
             click.echo(f"Would update {pyproject_file} with version {new_version}")
+
+        # Create dry-run directory
+        dry_run_dir = Path.cwd() / "dry-run"
+        try:
+            dry_run_dir.mkdir(exist_ok=True)
+            click.echo(f"Created dry-run directory: {dry_run_dir}")
+
+            # Copy and modify addon.xml
+            addon_xml_dry = dry_run_dir / "addon.xml"
+            try:
+                addon_xml_dry.write_text(addon_xml_path.read_text(encoding="utf-8"))
+                update_addon_xml(addon_xml_dry, new_version)
+                addon_news_content = news_formatter.format_for_addon_news(custom_summary=addon_news)
+                update_addon_news(addon_xml_dry, addon_news_content)
+                click.echo("Created addon.xml with proposed changes")
+            except (OSError, FileNotFoundError):
+                click.echo("Note: Could not create addon.xml preview (file access issue)")
+
+            # Copy and modify CHANGELOG.md
+            changelog_dry = dry_run_dir / "CHANGELOG.md"
+            try:
+                changelog_dry.write_text(changelog_path.read_text(encoding="utf-8"))
+                changelog_content = news_formatter.format_for_changelog()
+                update_changelog_with_content(changelog_dry, changelog_content)
+                click.echo("Created CHANGELOG.md with proposed changes")
+            except (OSError, FileNotFoundError):
+                click.echo("Note: Could not create CHANGELOG.md preview (file access issue)")
+
+            # Create RELEASE_NOTES.md
+            release_notes_dry = dry_run_dir / "RELEASE_NOTES.md"
+            try:
+                release_notes_content = news_formatter.format_for_release_notes()
+                release_notes_dry.write_text(release_notes_content)
+                click.echo("Created RELEASE_NOTES.md with release notes")
+            except OSError:
+                click.echo("Note: Could not create RELEASE_NOTES.md (file access issue)")
+
+            # Create git-commands.sh script
+            git_commands_script = dry_run_dir / "git-commands.sh"
+            try:
+                commit_message = news_formatter.format_for_commit()
+                git_commands_content = f"""#!/bin/bash
+# Dry-run: Commands that would be executed
+# Can be run manually to complete the release after reviewing dry-run files
+
+git add addon.xml CHANGELOG.md RELEASE_NOTES.md
+git commit -m '{commit_message}'
+git tag v{new_version}
+git push origin HEAD --tags
+"""
+                if pyproject_file:
+                    git_commands_content = git_commands_content.replace(
+                        "git add addon.xml CHANGELOG.md RELEASE_NOTES.md",
+                        f"git add addon.xml CHANGELOG.md RELEASE_NOTES.md {Path(pyproject_file).name}",
+                    )
+
+                git_commands_script.write_text(git_commands_content)
+                git_commands_script.chmod(0o755)  # Make executable
+                click.echo("Created executable git-commands.sh script")
+
+                click.echo("\nTo complete the release after review:")
+                click.echo(f"1. Review files in {dry_run_dir}")
+                click.echo("2. Run: ./dry-run/git-commands.sh")
+            except OSError:
+                click.echo("Note: Could not create git-commands.sh script (file access issue)")
+
+        except OSError:
+            click.echo("Note: Could not create dry-run directory (permission issue)")
+            click.echo("Dry-run completed with preview only")
         return
 
     # Get repo for git operations
@@ -557,7 +632,6 @@ def release(
     tree.write(addon_xml_path, encoding="UTF-8", xml_declaration=True)
 
     # Update CHANGELOG.md
-    changelog_path = addon_dir / "CHANGELOG.md"
     changelog_content = news_formatter.format_for_changelog()
     update_changelog_with_content(changelog_path, changelog_content)
 

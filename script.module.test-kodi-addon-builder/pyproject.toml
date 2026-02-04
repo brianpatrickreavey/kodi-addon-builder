@@ -1,0 +1,14 @@
+[project]
+name = "script.module.newsformatting"
+version = "1.2.3"
+description = "Test module for news formatting system"
+authors = [
+    {name = "Test Author", email = "test@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

@@ -130,3 +130,6 @@ dmypy.json
 
 # Generated requirements file
 requirements-dev-ci.txt
+
+# Kodi addon builder specific
+dry-run/

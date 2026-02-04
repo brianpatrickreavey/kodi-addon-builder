@@ -1032,7 +1032,7 @@ class TestReleaseCommand:
             ],
         )
         assert result.exit_code == 0
-        assert "Dry run: No changes made" in result.output
+        assert "Dry run: Creating preview files in /dry-run directory" in result.output
         assert "Would bump version to 1.1.0" in result.output
         assert "Would commit with message: 'release: 1.1.0 - Test release'" in result.output
         assert "Would create tag: v1.1.0" in result.output
@@ -1370,7 +1370,7 @@ class TestReleaseCommandIntegration:
                     ],
                 )
                 assert result.exit_code == 0
-                assert "Dry run: No changes made" in result.output
+                assert "Dry run: Creating preview files in /dry-run directory" in result.output
                 assert "Would bump version to 1.0.1" in result.output
 
                 # Verify no changes were made
