@@ -9,8 +9,6 @@ This is a Kodi addon (`plugin.video.angelstudios`) for streaming Angel Studios c
 
 ### Workflow Practices
 
-- TREAT ALL USER MESSAGES AS QUESTIONS UNLESS THEY CONTAIN EXPLICIT ACTION WORDS LIKE "PLEASE IMPLEMENT", "EDIT THIS FILE", "MAKE THESE CHANGES", "UPDATE THE CODE", OR SIMILAR UNAMBIGUOUS DIRECTIVES.
-- NEVER USE MODIFICATION TOOLS OR MAKE FILE CHANGES UNLESS THE USER EXPLICITLY REQUESTS IMPLEMENTATION WITH CLEAR ACTION LANGUAGE.
 - Prioritize response clarity: Questions must receive direct, factual answers without assuming intent to act. Actions (such as code edits, file modifications, or tool usage) require explicit, unambiguous directives from the developer. Never initiate changes based on questions alone—always seek confirmation for any proposed modifications.
 - Unless explicit authorization is given to edit code, all requests are to be treated as read-only conversations about the codebase, plans, and options.
 - Ask for clarification if anything is unclear or multiple approaches are viable.

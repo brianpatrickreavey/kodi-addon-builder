@@ -53,7 +53,12 @@ kodi-addon-builder = "kodi_addon_builder.cli:main"
 [tool.semantic_release]
 commit_parser = "scipy"
 allow_zero_version = true
-branches = ["master", "adopt-semantic-release"]
+
+[tool.semantic_release.branches.master]
+
+[tool.semantic_release.branches.adopt-semantic-release]
+match = "adopt-semantic-release"
+prerelease = false
 
 [tool.semantic_release.commit_parser_options]
 major_tags = ["remove"]
