@@ -36,6 +36,7 @@ dev = [
     "flake8-pyproject>=1.0.0",
     "pyright>=1.1.0",
     "pre-commit>=3.0.0",
+    "python-semantic-release>=8.0.0",
 ]
 ci = [
     "anybadge>=1.0.0",
@@ -48,6 +49,17 @@ Issues = "https://github.com/yourusername/kodi-addon-builder/issues"
 
 [project.scripts]
 kodi-addon-builder = "kodi_addon_builder.cli:main"
+
+[tool.semantic_release]
+commit_parser = "scipy"
+allow_zero_version = true
+branches = ["master", "adopt-semantic-release"]
+
+[tool.semantic_release.commit_parser_options]
+major_tags = ["remove"]
+minor_tags = ["add", "change", "deprecate"]
+patch_tags = ["fix", "security"]
+other_allowed_tags = []
 
 [tool.black]
 line-length = 120
